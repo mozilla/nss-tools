@@ -1,0 +1,22 @@
+[Unit]
+Description=Taskcluster docker-worker
+After=network.target docker.socket
+Requires=docker.service
+
+[Service]
+User=pi
+Restart=always
+RestartSec=120
+EnvironmentFile=/etc/docker-worker.conf
+WorkingDirectory=/home/pi/docker-worker/
+ExecStart=/usr/bin/babel-node -r bin/worker.js \
+  --host local \
+  --provisioner-id localprovisioner \
+  --worker-group $WORKER_GROUP \
+  --worker-type $WORKER_TYPE \
+  --worker-id $WORKER_ID \
+  --capacity $WORKER_CAPACITY \
+  local
+
+[Install]
+WantedBy=multi-user.target

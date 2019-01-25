@@ -30,7 +30,12 @@ hash ssh-add 2>/dev/null || die "ssh-add not installed"
 
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
-http "https://bugzilla.mozilla.org/rest/bug/${bug}" | jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
+bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
+echo ${bugdata}| jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
+
+if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].status')" == "RESOLVED" ] ;then
+  die "Bug is resolved. Please update ~/.nss-uplift.conf"
+fi
 
 echo "Mozilla repo: ${central_path}"
 echo "NSS tag: ${tag}"
@@ -39,37 +44,35 @@ echo
 echo "Press ctrl-c to cancel."
 read cancel
 
-echo "Updating to the current state of inbound."
+
 cd ${central_path}
 
-hg purge . || die "Couldn't purge"
-hg revert . || die "Couldn't revert"
-hg pull inbound || die "Couldn't pull from inbound"
-hg up inbound || die "Couldn't update to inbound"
-#hg pull inbound -u || die "Couldn't pull from inbound"
+if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
+  echo "Updating to the current state of inbound."
 
-if [ "${tag}" == "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
-  echo "NSS tag ${tag} is already landed in this repository."
-  exit 1
+  hg purge . || die "Couldn't purge"
+  hg revert . || die "Couldn't revert"
+  hg pull inbound || die "Couldn't pull from inbound"
+  hg up inbound || die "Couldn't update to inbound"
+
+  if [ "${tag}" == "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
+    echo "NSS tag ${tag} is already landed in this repository."
+    exit 1
+  fi
+
+  hg bookmark nss-uplift -f || die "Couldn't make the nss-uplift bookmark"
+
+  # update NSS
+  ./mach python client.py update_nss $tag || die "Couldn't update_nss"
+
+  # Check if there's a change in a .def file.
+  # We might have to change security/nss.symbols then manually.
+  defChanges=$(hg diff . | grep "\.def")
+  if [ ! -z "${defChanges}" -a "${defChanges}" != " " -a "${check_def}" == "true" ]; then
+    echo "Changes in .def. We might have to change security/nss.symbols then manually";
+    exit 1
+  fi
 fi
-
-hg bookmark nss-uplift -f || die "Couldn't make the nss-uplift bookmark"
-# update NSS
-./mach python client.py update_nss $tag || die "Couldn't update_nss"
-# Check if there's a change in a .def file.
-# We might have to change security/nss.symbols then manually.
-defChanges=$(hg diff . | grep "\.def")
-if [ ! -z "${defChanges}" -a "${defChanges}" != " " -a "${check_def}" == "true" ]; then
-  echo "Changes in .def. We might have to change security/nss.symbols then manually";
-  exit 1
-fi
-# build
-./mach build || die "Build failed! Manual intervention necessary!"
-
-# update CA telemetry hash table
-pushd security/manager/tools/
-xpcshell genRootCAHashes.js ${PWD}/../ssl/RootHashes.inc || die "Updating CA table failed! Manual intervention necessary!"
-popd
 
 origChanges=$(hg status | grep "\.orig")
 if [ ! -z "${origChanges}" -a "${origChanges}" != " " ]; then
@@ -77,14 +80,28 @@ if [ ! -z "${origChanges}" -a "${origChanges}" != " " ]; then
   exit 1
 fi
 
-hg addremove
-hg commit -m "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=me"
-# get everything that happened in the meantime
-hg up inbound
-hg pull inbound -u
-hg rebase -s nss-uplift -d inbound
-hg up nss-uplift
+if hg log -l 1 --template "{desc|firstline}\n" | grep ${tag} ; then
+  echo "Looks like the commit was already made."
+  echo "Updating to current inbound..."
+  hg pull inbound && hg rebase -s nss-uplift -d inbound
+  ./mach build || die "Build failed! Manual intervention necessary!"
 
+else
+  ./mach build || die "Build failed! Manual intervention necessary!"
+
+  # update CA telemetry hash table
+  pushd security/manager/tools/
+  xpcshell genRootCAHashes.js ${PWD}/../ssl/RootHashes.inc || die "Updating CA table failed! Manual intervention necessary!"
+  popd
+
+  hg addremove
+  hg commit -m "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=me"
+  # get everything that happened in the meantime
+  hg up inbound
+  hg pull inbound -u
+  hg rebase -s nss-uplift -d inbound
+  hg up nss-uplift
+fi
 
 read -n 1 -p "Do you wish to submit to try (y/n)? " try
 case ${try} in

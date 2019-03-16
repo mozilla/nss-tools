@@ -17,6 +17,9 @@ else
  die "No configuration ready"
 fi
 
+# Don't build. TODO: Move into the nss-uplift.conf or add a flag
+nobuild=${NOBUILD:-false}
+
 tag=${1:-$(hg id https://hg.mozilla.org/projects/nss#default)}
 
 echo "Usage: ${0} {NSS tag}"
@@ -40,6 +43,7 @@ fi
 echo "Mozilla repo: ${central_path}"
 echo "NSS tag: ${tag}"
 echo "Check-def: ${check_def}"
+${nobuild} && echo "Not building (NOBUILD set)"
 echo
 echo "Press ctrl-c to cancel."
 read cancel
@@ -84,10 +88,10 @@ if hg log -l 1 --template "{desc|firstline}\n" | grep ${tag} ; then
   echo "Looks like the commit was already made."
   echo "Updating to current inbound..."
   hg pull inbound && hg rebase -s nss-uplift -d inbound
-  ./mach build || die "Build failed! Manual intervention necessary!"
+  ${nobuild} || ./mach build || die "Build failed! Manual intervention necessary!"
 
 else
-  ./mach build || die "Build failed! Manual intervention necessary!"
+  ${nobuild} || ./mach build || die "Build failed! Manual intervention necessary!"
 
   # update CA telemetry hash table
   pushd security/manager/tools/
@@ -102,6 +106,8 @@ else
   hg rebase -s nss-uplift -d inbound
   hg up nss-uplift
 fi
+
+hg export -r .
 
 read -n 1 -p "Do you wish to submit to try (y/n)? " try
 case ${try} in

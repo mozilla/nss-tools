@@ -35,12 +35,16 @@ for bug in $(echo ${patches} | jq --raw-output '.[].bug'); do
   echo ${bugData}| jq '{"Id": .bugs[0].id, "Summary": .bugs[0].summary, "Status": .bugs[0].status}'
   echo ""
 
+  if [[ $(echo ${patchData} | jq '.reviewers|length < 2') == "true" ]] ; then
+    die "Bug ${bug} has no reviewers noted"
+  fi
+
   if [[ $(echo ${patchData} | jq '.reviewers|test("r=.+")') == "false" ]] ; then
-    warn "Bug ${bug} has no r= noted"
+    die "Bug ${bug} has no r= noted"
   fi
 
   if [[ $(echo ${patchData} | jq '.reviewers|test("r\\?")') == "true" ]] ; then
-    warn "Bug ${bug} has an r? noted"
+    die "Bug ${bug} has an r? noted"
   fi
 
   status="$(echo ${bugData} | jq --raw-output '.bugs[0].status')"
@@ -56,7 +60,9 @@ for bug in $(echo ${patches} | jq --raw-output '.[].bug'); do
   echo "==============="
 done
 
-if [[ ${errCount} -gt 0 ]]; then
+echo "Landing into branch $(grep "_VERSION " lib/nss/nss.h)"
+
+if [ ${errCount} -gt 0 ]; then
   echo "${errCount} warnings!"
   exit 1
 fi
@@ -64,8 +70,14 @@ fi
 while true; do
     read -p "OK, looks alright. Ready to push?" yn
     case $yn in
-        [Yy]* ) echo hg push -r ${revision}; break;;
+        [Yy]* ) break;;
         [Nn]* ) exit;;
         * ) echo "Please answer yes or no.";;
     esac
+done
+
+echo hg push -r ${revision}
+
+for bug in $(echo ${patches} | jq --raw-output '.[].bug'); do
+  echo "Be sure to resolve https://bugzilla.mozilla.org/show_bug.cgi?id=${bug}"
 done

@@ -1,0 +1,22 @@
+- Formatting:
+  - GTests are google style
+  - Other files are consistent style
+  - Clang-format
+
+- New functions:
+  - New functions are added to the abi-check files
+  - Everything that can be const, is
+  - Gtests for the new functions
+
+- New Gtests:
+  - Added to the shell-script runners
+
+- Safety:
+  - There are Gtests to cover the updated code
+  - Everything that can be const, is
+  - Variables are initialized
+  - Pointers are checked before use
+  - Out-variables are correct on error
+  - Every function that can error is checked
+  - Errors are propagated
+

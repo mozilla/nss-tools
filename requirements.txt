@@ -1,0 +1,3 @@
+prompt_toolkit==1.0.15
+whaaaaat>=0.5.2
+PyYAML>=3.12

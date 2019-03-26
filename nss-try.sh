@@ -34,10 +34,11 @@ echo ""
 
 echo "${trysyntax}" > "$(hg root)/.try"
 hg add "$(hg root)/.try" || die "Couldn't add file $(hg root)/.try"
-hg commit -m "${trysyntax}" "$(hg root)/.try" || die "Couldn't create the commit"
+hg commit -m "${trysyntax}" "$(hg root)/.try"
+# || die "Couldn't create the commit"
 
 echo "Pushing ${trysyntax} to nss-try..."
-hg push --new-branch -r . nss-try 
+hg push --new-branch -r . nss-try
 
 if [ $? -eq 0 ] ; then 
   rev=$(hg id --id)

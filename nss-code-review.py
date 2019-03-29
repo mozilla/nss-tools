@@ -14,25 +14,34 @@ with open(os.path.join(
             __location__, "nss-code-review-checklist.yaml"), "r") as inFile:
   checklistData = yaml.load(inFile, Loader=yaml.BaseLoader)
 
+print("h for help. y=pass, s=skip, n=fail\n\n")
+
 for segment in checklistData:
   for heading in segment:
-    print(heading)
+    print("## {} ##".format(heading))
 
     resultData[heading] = {}
 
     for rule in segment[heading]:
       answers = prompt([
-        {'type': 'confirm', 'name': 'checklist_item', 'message': rule},
+        {'type': 'expand', 'name': 'checklist_item', 'message': rule,
+         'default': 's',
+         'choices': [ {'name': 'Pass', 'key': 'y'},
+                      {'name': 'N/A', 'key': 's'},
+                      {'name': 'Fail', 'key': 'n'}] },
       ])
       resultData[heading][rule] = answers['checklist_item']
 
 with io.StringIO() as buf:
 
   for heading in resultData:
-    print("**"+heading+"**", file=buf)
+    print("**{}**".format(heading), file=buf)
     for rule in resultData[heading]:
-      if resultData[heading][rule]:
+      result = resultData[heading][rule]
+      if result == "Pass":
         print("✅ " + rule, file=buf)
+      elif result == "N/A":
+        print("🔸 " + rule, file=buf)
       else:
         print("❌ " + rule, file=buf)
     print("", file=buf)

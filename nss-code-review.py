@@ -3,11 +3,15 @@
 from whaaaaat import prompt
 import yaml
 import pyperclip
-import io
+import io, os
+
+__location__ = os.path.realpath(
+  os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 resultData = {}
 checklistData = {}
-with open("nss-code-review-checklist.yaml", "r") as inFile:
+with open(os.path.join(
+            __location__, "nss-code-review-checklist.yaml"), "r") as inFile:
   checklistData = yaml.load(inFile, Loader=yaml.BaseLoader)
 
 for segment in checklistData:

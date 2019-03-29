@@ -2,6 +2,8 @@
 
 from whaaaaat import prompt
 import yaml
+import pyperclip
+import io
 
 resultData = {}
 checklistData = {}
@@ -20,17 +22,22 @@ for segment in checklistData:
       ])
       resultData[heading][rule] = answers['checklist_item']
 
-print()
-print()
+with io.StringIO() as buf:
 
-for heading in resultData:
-  print("**"+heading+"**")
-  for rule in resultData[heading]:
-    if resultData[heading][rule]:
-      print("✅ " + rule)
-    else:
-      print("❌ " + rule)
-  print()
+  for heading in resultData:
+    print("**"+heading+"**", file=buf)
+    for rule in resultData[heading]:
+      if resultData[heading][rule]:
+        print("✅ " + rule, file=buf)
+      else:
+        print("❌ " + rule, file=buf)
+    print("", file=buf)
 
-print()
-print("[[ https://github.com/mozilla/nss-tools | nss-code-review.py ]]")
+  print("", file=buf)
+  print("[[ https://github.com/mozilla/nss-tools | nss-code-review.py ]]", file=buf)
+
+  print("\n\n")
+  print(buf.getvalue())
+
+  pyperclip.copy(buf.getvalue())
+  print("(Copied to clipboard)")

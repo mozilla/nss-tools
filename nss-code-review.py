@@ -41,7 +41,7 @@ with io.StringIO() as buf:
       if result == "Pass":
         print("✅ " + rule, file=buf)
       elif result == "N/A":
-        print("🔸 " + rule, file=buf)
+        print("⏭  " + rule, file=buf)
       else:
         print("❌ " + rule, file=buf)
     print("", file=buf)

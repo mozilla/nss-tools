@@ -1,6 +1,7 @@
 - Formatting:
-  - GTests are google style
+  - GTests are Google style
   - Other files are consistent style
+  - Passes clang-format
 
 - New functions:
   - New functions are added to the abi-check files
@@ -13,6 +14,7 @@
 
 - Safety:
   - There are Gtests to cover the updated code
+  - The tests check the success and failure cases
   - Everything that can be const, is
   - Variables are initialized
   - Pointers are checked before use on public functions

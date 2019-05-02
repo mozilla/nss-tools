@@ -5,7 +5,7 @@ die() {
   exit 1
 }
 
-[[ $(wc -l $(hg status -mard)) -eq 0 ]] || \
+[[ $(hg status -mard | wc -l) -eq 0 ]] || \
     die "Please commit unstaged changes"
 
 if [ $# -lt 1 ] ; then
@@ -41,7 +41,7 @@ hg add "$tryfile"  || die "Couldn't add file $tryfile"
 hg commit -m "${trysyntax}" "$tryfile"
 # || die "Couldn't create the commit"
 
-echo "Pushing nss-try..."
+echo "Pushing to nss-try..."
 if hg push --new-branch -r . nss-try; then
   rev=$(hg id --id)
   echo "Pushed ${rev} to nss-try. Find it on Treeherder:"

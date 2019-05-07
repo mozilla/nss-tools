@@ -2,3 +2,8 @@ prompt_toolkit==1.0.15
 whaaaaat>=0.5.2
 PyYAML>=3.12
 pyperclip>=1.7
+python-bugzilla>=2.2.0
+requests>=2.16.0
+python-hglib>2.6
+colorama
+

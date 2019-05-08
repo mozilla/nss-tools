@@ -107,7 +107,7 @@ def process_backout(commit, headline: str):
     'timestamp': commit[6],
   }
 
-def process_tag(commit, headline: str, *, version):
+def process_tag(commit, headline: str, *, version: PackageVersion):
   tagmatches = re.match(RE_tag, headline)
   if not tagmatches:
     fatal("Tag headline isn't formatted as expected")
@@ -143,7 +143,7 @@ def bug_status_check(*, bugdata, patch):
   else:
     fatal("Unknown patch type: " + patch['type'])
 
-def resolve(*, hgclient, bzapi, version, bug, commits):
+def resolve(*, hgclient, bzapi, version: PackageVersion, bug, commits):
   repo = hgclient.paths(name=b'default').decode(encoding='UTF-8').split('@')[1]
 
   bugdata = bzapi.getbug(bug)
@@ -185,7 +185,7 @@ def resolve(*, hgclient, bzapi, version, bug, commits):
   else:
     fatal(f"Unknown patch type: {patch['type']}")
 
-def collect_patches(*, version, commits, expected_bug=None):
+def collect_patches(*, version: PackageVersion, commits, expected_bug=None):
   patches=[]
   for commit in commits:
     headline = commit[5].decode(encoding='UTF-8').split("\n")[0]
@@ -199,7 +199,7 @@ def collect_patches(*, version, commits, expected_bug=None):
 
   return patches
 
-def process_patches(*, hgclient, bzapi, version, revrange: str, patches, commits):
+def process_patches(*, hgclient, bzapi, version: PackageVersion, revrange: str, patches, commits):
   bug = None
 
   for patch in patches:

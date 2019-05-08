@@ -6,6 +6,7 @@ import requests
 import json
 import hglib
 from colorama import init, Fore
+from dataclasses import dataclass
 from optparse import OptionParser
 from pathlib import Path
 from whaaaaat import prompt
@@ -41,13 +42,18 @@ def extract_version(contents: str, *, regex=None) -> str:
       fatal("Unknown version")
     return versionmatch.group("version")
 
-def get_version(hgclient, *, rev=None):
+@dataclass
+class PackageVersion:
+  component: str
+  number: str
+
+def get_version(hgclient, *, rev=None) -> PackageVersion:
   if Path("lib/nss/nss.h").exists():
     header_file = hgclient.cat([b"lib/nss/nss.h"], rev=rev).decode(encoding="UTF-8")
-    return {"component": "NSS", "number": extract_version(header_file, regex=RE_nss_version)}
+    return PackageVersion("NSS", extract_version(header_file, regex=RE_nss_version))
   elif Path("pr/include/prinit.h").exists():
     header_file = hgclient.cat([b"pr/include/prinit.h"], rev=rev).decode(encoding="UTF-8")
-    return {"component": "NSPR", "number": extract_version(header_file, regex=RE_nspr_version)}
+    return PackageVersion("NSPR", extract_version(header_file, regex=RE_nspr_version))
   raise Exception("No version files found")
 
 def process_bug(commit, headline: str, *, bug: int=None):
@@ -106,13 +112,13 @@ def process_tag(commit, headline: str, *, version):
   if not tagmatches:
     fatal("Tag headline isn't formatted as expected")
 
-  expected_version = version['number'].replace(".", "_")
+  expected_version = version.number.replace(".", "_")
   tag = tagmatches.group("tag")
 
   if not expected_version in tag:
     fatal(f"Tag {tag} doesn't contain {expected_version}")
 
-  info(f"Tag {tag} for version {version['number']} detected. Format looks good.")
+  info(f"Tag {tag} for version {version.number} detected. Format looks good.")
 
   return {
     'type': "tag",
@@ -157,7 +163,7 @@ def resolve(*, hgclient, bzapi, version, bug, commits):
     if answers['resolve']:
       update = bzapi.build_update(comment=comment, status="RESOLVED",
                                   resolution="FIXED",
-                                  target_milestone=version['number'],
+                                  target_milestone=version.number,
                                   keywords_remove="checkin-needed")
       breakpoint()
       bzapi.update_bugs([bug], update)
@@ -215,11 +221,11 @@ def process_patches(*, hgclient, bzapi, version, revrange: str, patches, commits
     log(f"Version: {bugdata.version}")
     log(f"Target: {bugdata.target_milestone}")
 
-    if bugdata.component != version['component'] and bugdata.product != version['component']:
-      fatal(f"Bug component mismatch. Bug is for {bugdata.product}::{bugdata.component}, but we're in {version['component']}")
+    if bugdata.component != version.component and bugdata.product != version.component:
+      fatal(f"Bug component mismatch. Bug is for {bugdata.product}::{bugdata.component}, but we're in {version.component}")
 
-    if bugdata.target_milestone != version['number']:
-      warn(f"Bug target milestone ({bugdata.target_milestone}) is not set to {version['number']}")
+    if bugdata.target_milestone != version.number:
+      warn(f"Bug target milestone ({bugdata.target_milestone}) is not set to {version.number}")
 
     bug_status_check(bugdata=bugdata, patch=patch)
 
@@ -266,7 +272,7 @@ def main():
   info(f"Interacting with Bugzilla at {bzapi.url}. Logged in = {bzapi.logged_in}")
 
   version = get_version(hgclient)
-  info(f"Landing into {version['component']} {version['number']}")
+  info(f"Landing into {version.component} {version.number}")
 
   try:
     if options.bug and options.landed:

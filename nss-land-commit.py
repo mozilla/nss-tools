@@ -1,6 +1,5 @@
 #!/usr/local/bin/python3
 
-from whaaaaat import prompt
 import io, os, re
 import bugzilla
 import requests
@@ -8,6 +7,8 @@ import json
 import hglib
 from colorama import init, Fore
 from optparse import OptionParser
+from pathlib import Path
+from whaaaaat import prompt
 
 RE_bugnum = r'[Bb]ug (?P<bug>[0-9]+)'
 RE_reviewers = r' (?P<reviewers>r[?=].*)+'
@@ -34,22 +35,22 @@ def info(message):
 def log(message):
   print(message)
 
-def extract_version(contents, *, regex=None):
+def extract_version(contents: str, *, regex=None) -> str:
     versionmatch = re.search(regex, contents)
     if not versionmatch:
       fatal("Unknown version")
     return versionmatch.group("version")
 
 def get_version(hgclient, *, rev=None):
-  if os.path.isfile("lib/nss/nss.h"):
+  if Path("lib/nss/nss.h").exists():
     header_file = hgclient.cat([b"lib/nss/nss.h"], rev=rev).decode(encoding="UTF-8")
     return {"component": "NSS", "number": extract_version(header_file, regex=RE_nss_version)}
-  elif os.path.isfile("pr/include/prinit.h"):
+  elif Path("pr/include/prinit.h").exists():
     header_file = hgclient.cat([b"pr/include/prinit.h"], rev=rev).decode(encoding="UTF-8")
     return {"component": "NSPR", "number": extract_version(header_file, regex=RE_nspr_version)}
   raise Exception("No version files found")
 
-def process_bug(commit, headline, *, bug=None):
+def process_bug(commit, headline: str, *, bug: int=None):
   log(f"Headline: {headline}")
 
   reviewers = []
@@ -79,7 +80,7 @@ def process_bug(commit, headline, *, bug=None):
     'timestamp': commit[6],
   }
 
-def process_backout(commit, headline):
+def process_backout(commit, headline: str):
   log("Headline: " + headline)
 
   backoutmatches = re.match(RE_backout_template, headline)
@@ -100,7 +101,7 @@ def process_backout(commit, headline):
     'timestamp': commit[6],
   }
 
-def process_tag(commit, headline, *, version):
+def process_tag(commit, headline: str, *, version):
   tagmatches = re.match(RE_tag, headline)
   if not tagmatches:
     fatal("Tag headline isn't formatted as expected")
@@ -192,7 +193,7 @@ def collect_patches(*, version, commits, expected_bug=None):
 
   return patches
 
-def process_patches(*, hgclient, bzapi, version, revrange, patches, commits):
+def process_patches(*, hgclient, bzapi, version, revrange: str, patches, commits):
   bug = None
 
   for patch in patches:
@@ -249,8 +250,8 @@ def main():
   hgclient = hglib.open(".")
 
   config = {}
-  confFile = os.path.expanduser('~/.nss-land-commit.json')
-  if os.path.exists(confFile):
+  confFile = Path.home() / ".nss-land-commit.json"
+  if confFile.exists():
     with open(confFile, 'r') as conf:
       config = json.load(conf)
 

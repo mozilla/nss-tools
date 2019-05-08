@@ -143,20 +143,32 @@ def bug_status_check(*, bugdata, patch):
   else:
     fatal("Unknown patch type: " + patch['type'])
 
-def resolve(*, hgclient, bzapi, version: PackageVersion, bug, commits):
+def resolve(*, hgclient, bzapi, version: PackageVersion, bug: int, commits):
   repo = hgclient.paths(name=b'default').decode(encoding='UTF-8').split('@')[1]
 
   bugdata = bzapi.getbug(bug)
 
+  patch_type = None
   comment = ""
   for patch in collect_patches(version=version, commits=commits, expected_bug=bug):
+    if patch_type == None:
+      patch_type = patch['type']
+    elif patch_type != patch['type']:
+      warn(f"Some of the patches are of different types: {patch_type}, {patch['type']}")
+
+    if patch['bug'] != bug:
+      warn(f"Patch bug number {patch['bug']} doesn't match expected {bug}.")
+
+    if patch_type == "backout" and comment == "":
+      comment += f"Backed out for {patch['reason']}\n"
+
     bug_status_check(bugdata=bugdata, patch=patch)
 
     comment += f"https://{repo}rev/{patch['hash'].decode(encoding='UTF-8')}\n"
 
   info(f"Adding comment to bug {bug}:")
 
-  if patch['type'] == 'patch':
+  if patch_type == 'patch':
     log(comment)
     answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and resolve the bug?',
                       'name': 'resolve'}])
@@ -169,8 +181,7 @@ def resolve(*, hgclient, bzapi, version: PackageVersion, bug, commits):
       bzapi.update_bugs([bug], update)
       info(f"Resolved {bugdata.weburl}")
 
-  elif patch['type'] == 'backout':
-    comment = f"Backed out for {patch['reason']}\n{comment}"
+  elif patch_type == 'backout':
     log(comment)
     answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and reopen the bug?',
                       'name': 'resolve'}])
@@ -183,7 +194,7 @@ def resolve(*, hgclient, bzapi, version: PackageVersion, bug, commits):
       info(f"Reopened {bugdata.weburl}")
 
   else:
-    fatal(f"Unknown patch type: {patch['type']}")
+    fatal(f"Unknown patch type: {patch_type}")
 
 def collect_patches(*, version: PackageVersion, commits, expected_bug=None):
   patches=[]

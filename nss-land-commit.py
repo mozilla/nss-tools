@@ -49,8 +49,8 @@ def get_version(hgclient, *, rev=None):
     return {"component": "NSPR", "number": extract_version(header_file, regex=RE_nspr_version)}
   raise Exception("No version files found")
 
-def process_bug(commit, headline, *, bug):
-  log("Headline: " + headline)
+def process_bug(commit, headline, *, bug=None):
+  log(f"Headline: {headline}")
 
   reviewers = []
   reviewermatches = re.search(RE_reviewers, headline)
@@ -64,7 +64,7 @@ def process_bug(commit, headline, *, bug):
     fatal("No bug number found in the headline and none provided")
   elif bugmatches and not bug:
     if bug is not None and bug != bugmatches.group("bug"):
-      warn("Bug number {} was provided, but using {} from the headline".format(bug, bugmatches.group("bug")))
+      warn(f"Bug number {bug} was provided, but using {bugmatches.group('bug')} from the headline")
     bug = bugmatches.group("bug")
 
   return {
@@ -109,9 +109,9 @@ def process_tag(commit, headline, *, version):
   tag = tagmatches.group("tag")
 
   if not expected_version in tag:
-    fatal("Tag {} doesn't contain {}".format(tag, expected_version))
+    fatal(f"Tag {tag} doesn't contain {expected_version}")
 
-  info("Tag {} for version {} detected. Format looks good.".format(tag, version['number']))
+  info(f"Tag {tag} for version {version['number']} detected. Format looks good.")
 
   return {
     'type': "tag",
@@ -129,10 +129,10 @@ def process_tag(commit, headline, *, version):
 def bug_status_check(*, bugdata, patch):
   if patch['type'] == 'patch':
     if bugdata.status not in ["NEW", "ASSIGNED", "REOPENED"]:
-      warn("Bug {} is in an odd state for a patch: {}".format(bugdata.id, bugdata.status))
+      warn(f"Bug {bugdata.id} is in an odd state for a patch: {bugdata.status}")
   elif patch['type'] == 'backout':
     if bugdata.status not in ["RESOLVED"]:
-      warn("Bug {} is in an odd state for a backout: {}".format(bugdata.id, bugdata.status))
+      warn(f"Bug {bugdata.id} is in an odd state for a backout: {bugdata.status}")
   else:
     fatal("Unknown patch type: " + patch['type'])
 
@@ -142,12 +142,12 @@ def resolve(*, hgclient, bzapi, version, bug, commits):
   bugdata = bzapi.getbug(bug)
 
   comment = ""
-  for patch in collect_patches(version=version, commits=commits, bug=bug):
+  for patch in collect_patches(version=version, commits=commits, expected_bug=bug):
     bug_status_check(bugdata=bugdata, patch=patch)
 
-    comment += "https://{}rev/{}\n".format(repo, patch['hash'].decode(encoding='UTF-8'))
+    comment += f"https://{repo}rev/{patch['hash'].decode(encoding='UTF-8')}\n"
 
-  info("Adding comment to bug {}:".format(bug))
+  info(f"Adding comment to bug {bug}:")
 
   if patch['type'] == 'patch':
     log(comment)
@@ -160,10 +160,10 @@ def resolve(*, hgclient, bzapi, version, bug, commits):
                                   keywords_remove="checkin-needed")
       breakpoint()
       bzapi.update_bugs([bug], update)
-      info("Resolved {}".format(bugdata.weburl))
+      info(f"Resolved {bugdata.weburl}")
 
   elif patch['type'] == 'backout':
-    comment = "Backed out for {}\n{}".format(patch['reason'], comment)
+    comment = f"Backed out for {patch['reason']}\n{comment}"
     log(comment)
     answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and reopen the bug?',
                       'name': 'resolve'}])
@@ -173,12 +173,12 @@ def resolve(*, hgclient, bzapi, version, bug, commits):
                                   target_milestone="---")
       breakpoint()
       bzapi.update_bugs([bug], update)
-      info("Reopened {}".format(bugdata.weburl))
+      info(f"Reopened {bugdata.weburl}")
 
   else:
-    fatal("Unknown patch type: " + patch['type'])
+    fatal(f"Unknown patch type: {patch['type']}")
 
-def collect_patches(*, version, commits, bug):
+def collect_patches(*, version, commits, expected_bug=None):
   patches=[]
   for commit in commits:
     headline = commit[5].decode(encoding='UTF-8').split("\n")[0]
@@ -188,7 +188,7 @@ def collect_patches(*, version, commits, bug):
     elif re.match(RE_tag, headline):
       patches.append(process_tag(commit, headline, version=version))
     else:
-      patches.append(process_bug(commit, headline, bug=bug))
+      patches.append(process_bug(commit, headline, bug=expected_bug))
 
   return patches
 
@@ -202,30 +202,30 @@ def process_patches(*, hgclient, bzapi, version, revrange, patches, commits):
     if bug is None:
       bug = patch['bug']
     elif bug != patch['bug']:
-      fatal("Multiple bugs in one revrange: {}, {}".format(bug, patch['bug']))
+      fatal(f"Multiple bugs in one revrange: {bug}, {patch['bug']}")
 
     bugdata = bzapi.getbug(patch['bug'])
 
     info(bugdata.__str__())
-    log("Component: {}".format(bugdata.component))
+    log(f"Component: {bugdata.component}")
     log(bugdata.weburl)
     log(bugdata.status)
     log(bugdata.type)
-    log("Version: {}".format(bugdata.version))
-    log("Target: {}".format(bugdata.target_milestone))
+    log(f"Version: {bugdata.version}")
+    log(f"Target: {bugdata.target_milestone}")
 
     if bugdata.component != version['component'] and bugdata.product != version['component']:
-      fatal("Bug component mismatch. Bug is for {}, but we're in {}".format(bugdata.component, version['component']))
+      fatal(f"Bug component mismatch. Bug is for {bugdata.product}::{bugdata.component}, but we're in {version['component']}")
 
     if bugdata.target_milestone != version['number']:
-      warn("Bug target milestone ({}) is not set to {}".format(bugdata.target_milestone, version['number']))
+      warn(f"Bug target milestone ({bugdata.target_milestone}) is not set to {version['number']}")
 
     bug_status_check(bugdata=bugdata, patch=patch)
 
     answers = prompt([{'type': 'confirm', 'message': 'Push and resolve bug?', 'name': 'push'}])
     if answers['push']:
       log("Now run:")
-      info("  hg push -r {}".format(revrange))
+      info(f"  hg push -r {revrange}")
 
       if prompt([{'type': 'confirm', 'message': 'Was your push successful?', 'name': 'push'}])['push']:
         resolve(hgclient=hgclient, bzapi=bzapi, bug=bug, version=version,
@@ -241,6 +241,8 @@ def main():
                     help="as-landed hg revision, used with -b")
   parser.add_option("-r", "--revrange", default=".",
                     help="hg revision range")
+  parser.add_option("-s", "--resolve", default=".",
+                    help="resolve bugs for a given revision range")
 
   (options, args) = parser.parse_args()
 
@@ -260,21 +262,32 @@ def main():
   else:
     bzapi = bugzilla.Bugzilla("bugzilla.mozilla.org", api_key=config['api_key'])
 
-  info("Interacting with Bugzilla at {}. Logged in = {}".format(bzapi.url, bzapi.logged_in))
+  info(f"Interacting with Bugzilla at {bzapi.url}. Logged in = {bzapi.logged_in}")
 
   version = get_version(hgclient)
-  info("Landing into {component} {number}".format(**version))
+  info(f"Landing into {version['component']} {version['number']}")
 
   try:
     if options.bug and options.landed:
       commits = hgclient.log(revrange=options.landed)
       if len(commits) != 1:
-        fatal("Couldn't find revision {}".format(rev))
+        fatal(f"Couldn't find revision {options.landed}")
       resolve(hgclient=hgclient, bzapi=bzapi, bug=options.bug, commits=commits,
               version=version)
 
     elif options.bug or options.landed:
       fatal("You have to specify --bug and --landed together")
+
+    elif options.resolve:
+      commits = hgclient.log(revrange=options.resolve)
+      if not commits:
+        fatal("No changes found")
+
+      for patch in collect_patches(version=version, commits=commits):
+        if patch['type'] is "patch":
+          resolve(hgclient=hgclient, bzapi=bzapi, bug=patch['bug'],
+                  commits=commits, version=version)
+
 
     else:
       commits = hgclient.outgoing(revrange=options.revrange)
@@ -286,7 +299,7 @@ def main():
                       patches=patches, version=version, commits=commits)
 
   except hglib.error.CommandError as ce:
-    fatal("Mercurial error {}".format(ce.err.decode(encoding='UTF-8')))
+    fatal(f"Mercurial error {ce.err.decode(encoding='UTF-8')}")
 
 if __name__ == "__main__":
   main()

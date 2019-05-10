@@ -11,24 +11,7 @@ from optparse import OptionParser
 from pathlib import Path
 from whaaaaat import prompt
 
-RE_bugnum = r'[Bb]ug (?P<bug>[0-9]+)'
-RE_reviewers = r' (?P<reviewers>r[?=].*)+'
-RE_backout = r'(backout|back.* out|Back.* out|Backout)'
-RE_backout_template = r'[Bb]acked out changeset (?P<changeset>[a-z0-9]+) \([Bb]ug (?P<bug>[0-9]+)\) for (?P<reason>.+)'
-RE_nss_version = r'#define NSS_VERSION "(?P<version>[0-9.]+)"'
-RE_nspr_version = r'#define PR_VERSION +"(?P<version>[0-9.]+).*"'
-RE_tag = r'Added tag (?P<tag>[A-Z0-9_]+) for changeset (?P<changeset>[a-z0-9]+)'
-
-def fatal(message):
-  print(Fore.RED + "[die] " + message)
-  exit()
-
-def warn(message):
-  print(Fore.YELLOW + "[WARN] " + message)
-  answers = prompt([{'type': 'confirm', 'message': 'Proceed anyway?',
-                    'name': 'okay'}])
-  if not answers['okay']:
-    exit()
+from utils.types import Patch, PackageVersion, Validator
 
 def info(message):
   print(Fore.GREEN + message)
@@ -36,139 +19,45 @@ def info(message):
 def log(message):
   print(message)
 
-def extract_version(contents: str, *, regex=None) -> str:
-    versionmatch = re.search(regex, contents)
-    if not versionmatch:
-      fatal("Unknown version")
-    return versionmatch.group("version")
-
-@dataclass
-class PackageVersion:
-  component: str
-  number: str
-
-def get_version(hgclient, *, rev=None) -> PackageVersion:
+def get_version(hgclient, *, rev=None, validator) -> PackageVersion:
   if Path("lib/nss/nss.h").exists():
-    header_file = hgclient.cat([b"lib/nss/nss.h"], rev=rev).decode(encoding="UTF-8")
-    return PackageVersion("NSS", extract_version(header_file, regex=RE_nss_version))
+    contents = hgclient.cat([b"lib/nss/nss.h"], rev=rev).decode(encoding="UTF-8")
+    return PackageVersion.from_header(component="NSS", header=contents,
+                                      validator=validator)
   elif Path("pr/include/prinit.h").exists():
-    header_file = hgclient.cat([b"pr/include/prinit.h"], rev=rev).decode(encoding="UTF-8")
-    return PackageVersion("NSPR", extract_version(header_file, regex=RE_nspr_version))
+    contents = hgclient.cat([b"pr/include/prinit.h"], rev=rev).decode(encoding="UTF-8")
+    return PackageVersion.from_header(component="NSPR", header=contents,
+                                      validator=validator)
   raise Exception("No version files found")
 
-def process_bug(commit, headline: str, *, bug: int=None):
-  log(f"Headline: {headline}")
-
-  reviewers = []
-  reviewermatches = re.search(RE_reviewers, headline)
-  if not reviewermatches:
-    warn("No reviewers found in the headline")
-  else:
-    reviewers = reviewermatches.group("reviewers")
-
-  bugmatches = re.match(RE_bugnum, headline)
-  if not bugmatches and not bug:
-    fatal("No bug number found in the headline and none provided")
-  elif bugmatches and not bug:
-    if bug is not None and bug != bugmatches.group("bug"):
-      warn(f"Bug number {bug} was provided, but using {bugmatches.group('bug')} from the headline")
-    bug = bugmatches.group("bug")
-
-  return {
-    'type': "patch",
-    'bug': bug,
-    'reviewers': reviewers,
-    'headline': headline,
-    'id': commit[0],
-    'hash': commit[1],
-    'author': commit[4],
-    'message': commit[5].decode(encoding='UTF-8'),
-    'timestamp': commit[6],
-  }
-
-def process_backout(commit, headline: str):
-  log("Headline: " + headline)
-
-  backoutmatches = re.match(RE_backout_template, headline)
-  if not backoutmatches:
-    fatal("Backout headline needs to be of the form: Backed out changeset X (bug Y) for REASON")
-
-  info("Backout detected. Format looks good.")
-  return {
-    'type': "backout",
-    'bug': backoutmatches.group("bug"),
-    'changeset': backoutmatches.group("changeset"),
-    'reason': backoutmatches.group("reason"),
-    'headline': headline,
-    'id': commit[0],
-    'hash': commit[1],
-    'author': commit[4],
-    'message': commit[5].decode(encoding='UTF-8'),
-    'timestamp': commit[6],
-  }
-
-def process_tag(commit, headline: str, *, version: PackageVersion):
-  tagmatches = re.match(RE_tag, headline)
-  if not tagmatches:
-    fatal("Tag headline isn't formatted as expected")
-
-  expected_version = version.number.replace(".", "_")
-  tag = tagmatches.group("tag")
-
-  if not expected_version in tag:
-    fatal(f"Tag {tag} doesn't contain {expected_version}")
-
-  info(f"Tag {tag} for version {version.number} detected. Format looks good.")
-
-  return {
-    'type': "tag",
-    'changeset': tagmatches.group("changeset"),
-    'headline': headline,
-    'tag': tag,
-    'version': version,
-    'id': commit[0],
-    'hash': commit[1],
-    'author': commit[4],
-    'message': commit[5].decode(encoding='UTF-8'),
-    'timestamp': commit[6],
-  }
-
-def bug_status_check(*, bugdata, patch):
-  if patch['type'] == 'patch':
+def bug_status_check(*, bugdata, patch, validator: Validator):
+  if patch.type == 'patch':
     if bugdata.status not in ["NEW", "ASSIGNED", "REOPENED"]:
-      warn(f"Bug {bugdata.id} is in an odd state for a patch: {bugdata.status}")
-  elif patch['type'] == 'backout':
+      validator.warn(f"Bug {bugdata.id} is in an odd state for a patch: {bugdata.status}")
+  elif patch.type == 'backout':
     if bugdata.status not in ["RESOLVED"]:
-      warn(f"Bug {bugdata.id} is in an odd state for a backout: {bugdata.status}")
+      validator.warn(f"Bug {bugdata.id} is in an odd state for a backout: {bugdata.status}")
   else:
-    fatal("Unknown patch type: " + patch['type'])
+    validator.fatal("Unknown patch type: " + patch.type)
 
-def resolve(*, hgclient, bzapi, version: PackageVersion, bug: int, commits):
+def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
   repo = hgclient.paths(name=b'default').decode(encoding='UTF-8').split('@')[1]
 
-  bugdata = bzapi.getbug(bug)
+  bugdata = bzapi.getbug(patch.bug)
 
-  patch_type = None
-  comment = ""
-  for patch in collect_patches(version=version, commits=commits, expected_bug=bug):
-    if patch_type == None:
-      patch_type = patch['type']
-    elif patch_type != patch['type']:
-      warn(f"Some of the patches are of different types: {patch_type}, {patch['type']}")
+  bug_status_check(bugdata=bugdata, patch=patch, validator=validator)
 
-    if patch['bug'] != bug:
-      warn(f"Patch bug number {patch['bug']} doesn't match expected {bug}.")
+  if patch.type == "backout":
+    comment = f"Backed out for {patch.reason}\n"
+  else:
+    comment = f"https://{repo}rev/{patch.hash.decode(encoding='UTF-8')}\n"
 
-    if patch_type == "backout" and comment == "":
-      comment += f"Backed out for {patch['reason']}\n"
+  version = get_version(hgclient, rev=patch.hash, validator=validator)
+  info(f"Patch {patch} is against {version.component} {version.number}")
 
-    bug_status_check(bugdata=bugdata, patch=patch)
+  info(f"Adding comment to bug {patch.bug}:")
 
-    comment += f"https://{repo}rev/{patch['hash'].decode(encoding='UTF-8')}\n"
-
-  info(f"Adding comment to bug {bug}:")
-
-  if patch_type == 'patch':
+  if patch.type == 'patch':
     log(comment)
     answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and resolve the bug?',
                       'name': 'resolve'}])
@@ -178,10 +67,10 @@ def resolve(*, hgclient, bzapi, version: PackageVersion, bug: int, commits):
                                   target_milestone=version.number,
                                   keywords_remove="checkin-needed")
       breakpoint()
-      bzapi.update_bugs([bug], update)
+      bzapi.update_bugs([patch.bug], update)
       info(f"Resolved {bugdata.weburl}")
 
-  elif patch_type == 'backout':
+  elif patch.type == 'backout':
     log(comment)
     answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and reopen the bug?',
                       'name': 'resolve'}])
@@ -190,39 +79,32 @@ def resolve(*, hgclient, bzapi, version: PackageVersion, bug: int, commits):
                                   resolution="---",
                                   target_milestone="---")
       breakpoint()
-      bzapi.update_bugs([bug], update)
+      bzapi.update_bugs([patch.bug], update)
       info(f"Reopened {bugdata.weburl}")
 
   else:
-    fatal(f"Unknown patch type: {patch_type}")
+    validator.fatal(f"Unknown patch type: {patch.type}")
 
-def collect_patches(*, version: PackageVersion, commits, expected_bug=None):
-  patches=[]
-  for commit in commits:
-    headline = commit[5].decode(encoding='UTF-8').split("\n")[0]
-
-    if re.match(RE_backout, headline):
-      patches.append(process_backout(commit, headline))
-    elif re.match(RE_tag, headline):
-      patches.append(process_tag(commit, headline, version=version))
-    else:
-      patches.append(process_bug(commit, headline, bug=expected_bug))
-
-  return patches
-
-def process_patches(*, hgclient, bzapi, version: PackageVersion, revrange: str, patches, commits):
+def process_patches(*, hgclient, bzapi, revrange: str, patches: list,
+                    validator: Validator):
   bug = None
 
+  version = get_version(hgclient, rev=revrange, validator=validator)
+  info(f"Patchset {revrange} is against {version.component} {version.number}")
+
+  if len(patches) != 1:
+    raise Exception("One at a time right now")
+
   for patch in patches:
-    if patch['type'] == 'tag':
+    if patch.type is 'tag':
       continue
 
     if bug is None:
-      bug = patch['bug']
-    elif bug != patch['bug']:
-      fatal(f"Multiple bugs in one revrange: {bug}, {patch['bug']}")
+      bug = patch.bug
+    elif bug != patch.bug:
+      validator.fatal(f"Multiple bugs in one revrange: {bug}, {patch.bug}")
 
-    bugdata = bzapi.getbug(patch['bug'])
+    bugdata = bzapi.getbug(patch.bug)
 
     info(bugdata.__str__())
     log(f"Component: {bugdata.component}")
@@ -233,12 +115,12 @@ def process_patches(*, hgclient, bzapi, version: PackageVersion, revrange: str, 
     log(f"Target: {bugdata.target_milestone}")
 
     if bugdata.component != version.component and bugdata.product != version.component:
-      fatal(f"Bug component mismatch. Bug is for {bugdata.product}::{bugdata.component}, but we're in {version.component}")
+      validator.fatal(f"Bug component mismatch. Bug is for {bugdata.product}::{bugdata.component}, but we're in {version.component}")
 
     if bugdata.target_milestone != version.number:
-      warn(f"Bug target milestone ({bugdata.target_milestone}) is not set to {version.number}")
+      validator.warn(f"Bug target milestone ({bugdata.target_milestone}) is not set to {version.number}")
 
-    bug_status_check(bugdata=bugdata, patch=patch)
+    bug_status_check(bugdata=bugdata, patch=patch, validator=validator)
 
     answers = prompt([{'type': 'confirm', 'message': 'Push and resolve bug?', 'name': 'push'}])
     if answers['push']:
@@ -246,8 +128,7 @@ def process_patches(*, hgclient, bzapi, version: PackageVersion, revrange: str, 
       info(f"  hg push -r {revrange}")
 
       if prompt([{'type': 'confirm', 'message': 'Was your push successful?', 'name': 'push'}])['push']:
-        resolve(hgclient=hgclient, bzapi=bzapi, bug=bug, version=version,
-                commits=commits)
+        resolve(hgclient=hgclient, bzapi=bzapi, patch=patch)
 
 def main():
   init(autoreset=True)
@@ -259,7 +140,7 @@ def main():
                     help="as-landed hg revision, used with -b")
   parser.add_option("-r", "--revrange", default=".",
                     help="hg revision range")
-  parser.add_option("-s", "--resolve", default=".",
+  parser.add_option("-s", "--resolve",
                     help="resolve bugs for a given revision range")
 
   (options, args) = parser.parse_args()
@@ -280,44 +161,51 @@ def main():
   else:
     bzapi = bugzilla.Bugzilla("bugzilla.mozilla.org", api_key=config['api_key'])
 
-  info(f"Interacting with Bugzilla at {bzapi.url}. Logged in = {bzapi.logged_in}")
+  validator = Validator()
 
-  version = get_version(hgclient)
-  info(f"Landing into {version.component} {version.number}")
+  info(f"Interacting with Bugzilla at {bzapi.url}. Logged in = {bzapi.logged_in}")
 
   try:
     if options.bug and options.landed:
       commits = hgclient.log(revrange=options.landed)
       if len(commits) != 1:
-        fatal(f"Couldn't find revision {options.landed}")
-      resolve(hgclient=hgclient, bzapi=bzapi, bug=options.bug, commits=commits,
-              version=version)
+        validator.fatal(f"Couldn't find revision {options.landed}")
+
+      patch = Patch(commit=commits[0], validator=validator)
+      resolve(hgclient=hgclient, bzapi=bzapi, patch=patch,
+              validator=validator)
 
     elif options.bug or options.landed:
-      fatal("You have to specify --bug and --landed together")
+      validator.fatal("You have to specify --bug and --landed together")
 
     elif options.resolve:
       commits = hgclient.log(revrange=options.resolve)
       if not commits:
-        fatal("No changes found")
+        validator.fatal("No changes found")
 
-      for patch in collect_patches(version=version, commits=commits):
-        if patch['type'] is "patch":
-          resolve(hgclient=hgclient, bzapi=bzapi, bug=patch['bug'],
-                  commits=commits, version=version)
+      if len(commits) != 1:
+        raise Exception("Only one at a time now")
 
+      for commit in commits:
+        patch = Patch(commit=commit, validator=validator)
+        if patch.type is "patch":
+          resolve(hgclient=hgclient, bzapi=bzapi, patch=patch,
+                  validator=validator)
 
     else:
       commits = hgclient.outgoing(revrange=options.revrange)
       if not commits:
-        fatal("No changes found")
+        validator.fatal("No changes found")
 
-      patches = collect_patches(version=version, commits=commits, bug=options.bug)
+      patches = []
+      for commit in commits:
+        patches.append(Patch(commit=commit, validator=validator))
+
       process_patches(hgclient=hgclient, bzapi=bzapi, revrange=options.revrange,
-                      patches=patches, version=version, commits=commits)
+                      patches=patches, validator=validator)
 
   except hglib.error.CommandError as ce:
-    fatal(f"Mercurial error {ce.err.decode(encoding='UTF-8')}")
+    validator.fatal(f"Mercurial error {ce.err.decode(encoding='UTF-8')}")
 
 if __name__ == "__main__":
   main()

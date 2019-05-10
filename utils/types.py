@@ -4,9 +4,9 @@ from colorama import init, Fore
 from dataclasses import dataclass
 from whaaaaat import prompt
 
-RE_bugnum = r'[Bb]ug (?P<bug>[0-9]+)'
-RE_reviewers = r' (?P<reviewers>r[?=].*)+'
+RE_patch = r'[Bb]ug (?P<bug>[0-9]+)[ ,-]*(?P<desc>.+) +(?P<reviewers>r[?=].*)* *(?P<approvers>a=.*)*'
 RE_backout = r'(backout|back.* out|Back.* out|Backout)'
+RE_backout_std = r'[Bb]acked out changeset (?P<changeset>[a-z0-9]+).*'
 RE_backout_template = r'[Bb]acked out changeset (?P<changeset>[a-z0-9]+) \([Bb]ug (?P<bug>[0-9]+)\) for (?P<reason>.+)'
 RE_nss_version = r'#define NSS_VERSION "(?P<version>[0-9.]+)"'
 RE_nspr_version = r'#define PR_VERSION +"(?P<version>[0-9.]+).*"'
@@ -58,16 +58,17 @@ class PackageVersion:
 @dataclass
 class Patch:
   type: str
-  bug: int
-  reviewers: list
   headline: str
   id: str
   hash: str
-  tag: str
   author: str
-  reason: str
   message: str
   timestamp: str
+  bug: int = None
+  reviewers: list = None
+  tag: str = None
+  reason: str = None
+  description: str = None
 
   def __init__(self, *, validator: Validator, commit: list):
     self.headline = commit[5].decode(encoding='UTF-8').split("\n")[0]
@@ -79,22 +80,19 @@ class Patch:
     else:
       self.__init_bug(validator, commit)
 
-    print(f"Headline: {self.headline}")
-
   def __repr__(self) -> str:
-    return f"[{self.type}] {self.bug}: {self.message}"
+    return f"[{self.type}]: {self.headline}"
 
   def __init_bug(self, validator: Validator, commit):
+    matches = re.match(RE_patch, self.headline)
+    if matches:
+      self.reviewers = matches.group("reviewers")
+      self.bug = matches.group("bug")
+      self.description = matches.group("desc")
+    else:
+      validator.warn(f"Patch headline doesn't parse: {self.headline}")
+
     self.type = "patch"
-
-    self.reviewers = self.find_reviewers()
-    if not self.reviewers:
-      validator.warn("No reviewers found in the headline")
-
-    self.bug = self.find_bug()
-    if not self.bug:
-      validator.fatal("No bug number found in the headline")
-
     self.id = commit[0]
     self.hash = commit[1]
     self.author = commit[4]
@@ -102,15 +100,21 @@ class Patch:
     self.timestamp = commit[6]
 
   def __init_backout(self, validator: Validator, commit):
-    backoutmatches = re.match(RE_backout_template, self.headline)
-    if not backoutmatches:
-      validator.fatal("Backout headline needs to be of the form: Backed out changeset X (bug Y) for REASON")
+    extended_match = re.match(RE_backout_template, self.headline)
+    if extended_match:
+      self.bug = extended_match.group("bug")
+      self.changeset = extended_match.group("changeset")
+      self.reason = extended_match.group("reason")
+    else:
+      validator.warn("Backout headline needs to be of the form: Backed out changeset X (bug Y) for REASON")
 
-    info("Backout detected. Format looks good.")
-    self.type = "backout",
-    self.bug = backoutmatches.group("bug")
-    self.changeset = backoutmatches.group("changeset")
-    self.reason = backoutmatches.group("reason")
+      matches = re.match(RE_backout_std, self.headline)
+      if matches:
+        self.changeset = matches.group("changeset")
+      else:
+        validator.warn(f"Backout headline doesn't parse: {self.headline}")
+
+    self.type = "backout"
     self.id = commit[0]
     self.hash = commit[1]
     self.author = commit[4]
@@ -120,9 +124,9 @@ class Patch:
   def __init_tag(self, validator: Validator, commit):
     tagmatches = re.match(RE_tag, self.headline)
     if not tagmatches:
-      validator.fatal("Tag headline isn't formatted as expected")
+      validator.fatal(f"Tag headline doesn't parse: {self.headline}")
 
-    self.type = "tag",
+    self.type = "tag"
     self.changeset = tagmatches.group("changeset")
     self.tag = tagmatches.group("tag")
     self.id = commit[0]
@@ -131,17 +135,22 @@ class Patch:
     self.message = commit[5].decode(encoding='UTF-8')
     self.timestamp = commit[6]
 
-  def find_reviewers(self):
-    reviewermatches = re.search(RE_reviewers, self.headline)
-    if not reviewermatches:
-      return []
-    return reviewermatches.group("reviewers")
+  def validate(self, *, validator: Validator) -> bool:
+    if self.type in ["patch", "backout"]:
+      if not self.bug:
+        validator.warn("No bug number found")
+        return False
 
-  def find_bug(self):
-    bugmatches = re.match(RE_bugnum, self.headline)
-    if not bugmatches:
-      return None
-    return bugmatches.group("bug")
+    if self.type is "backout":
+      if not self.changeset or not self.reason:
+        validator.warn("No changeset or reason in backout")
+        return False
+
+    if self.type is "patch":
+      if not self.reviewers:
+        validator.warn("No reviewers found")
+
+    return True
 
   def verify_tag_version(self, *, validator: Validator, version: PackageVersion):
     expected_version = version.number.replace(".", "_")

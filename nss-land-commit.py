@@ -1,12 +1,10 @@
 #!/usr/local/bin/python3
 
-import io, os, re
+import io, os
 import bugzilla
-import requests
 import json
 import hglib
 from colorama import init, Fore
-from dataclasses import dataclass
 from optparse import OptionParser
 from pathlib import Path
 from whaaaaat import prompt
@@ -172,6 +170,7 @@ def main():
         validator.fatal(f"Couldn't find revision {options.landed}")
 
       patch = Patch(commit=commits[0], validator=validator)
+      patch.validate(validator=validator)
       resolve(hgclient=hgclient, bzapi=bzapi, patch=patch,
               validator=validator)
 
@@ -188,6 +187,7 @@ def main():
 
       for commit in commits:
         patch = Patch(commit=commit, validator=validator)
+        patch.validate(validator=validator)
         if patch.type is "patch":
           resolve(hgclient=hgclient, bzapi=bzapi, patch=patch,
                   validator=validator)
@@ -199,7 +199,9 @@ def main():
 
       patches = []
       for commit in commits:
-        patches.append(Patch(commit=commit, validator=validator))
+        patch = Patch(commit=commit, validator=validator)
+        patch.validate(validator=validator)
+        patches.append(patch)
 
       process_patches(hgclient=hgclient, bzapi=bzapi, revrange=options.revrange,
                       patches=patches, validator=validator)

@@ -85,7 +85,7 @@ def main():
     with io.StringIO() as buf:
       print("<ul>", file=buf)
       for bugid, bugdata in bugs.items():
-        print(f'  <li><a href="{bugdata.weburl}">{bugid}</a> - {bugdata.summary}</li>', file=buf)
+        print(f'  <li><a href="{bugdata.weburl}">Bug {bugid}</a> - {bugdata.summary}</li>', file=buf)
       print("</ul>", file=buf)
 
       print("\n\n")

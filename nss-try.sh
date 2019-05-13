@@ -1,9 +1,12 @@
 #!/bin/bash
 
 die() {
-  echo $*
+  echo "$@"
   exit 1
 }
+
+[[ $(hg status -mard | wc -l) -eq 0 ]] || \
+    die "Please commit unstaged changes"
 
 if [ $# -lt 1 ] ; then
   echo "Usage: $0 try-syntax"
@@ -29,20 +32,19 @@ fi
 trysyntax="try: $*"
 
 echo "Try syntax: "
-echo " ${trysyntax}"
+echo "  ${trysyntax}"
 echo ""
 
-echo "${trysyntax}" > "$(hg root)/.try"
-hg add "$(hg root)/.try" || die "Couldn't add file $(hg root)/.try"
-hg commit -m "${trysyntax}" "$(hg root)/.try"
+tryfile="$(hg root)/.try"
+echo "${trysyntax}" > "$tryfile"
+hg add "$tryfile"  || die "Couldn't add file $tryfile"
+hg commit -m "${trysyntax}" "$tryfile"
 # || die "Couldn't create the commit"
 
-echo "Pushing ${trysyntax} to nss-try..."
-hg push --new-branch -r . nss-try
-
-if [ $? -eq 0 ] ; then 
+echo "Pushing to nss-try..."
+if hg push --new-branch -r . nss-try; then
   rev=$(hg id --id)
-  echo "Pushed ${rev} to Try. Find it on Treeherder:"
+  echo "Pushed ${rev} to nss-try. Find it on Treeherder:"
   echo ""
   echo "  https://treeherder.mozilla.org/#/jobs?repo=nss-try&revision=${rev}"
   echo ""
@@ -51,6 +53,5 @@ fi
 echo "Cleaning up..."
 hg strip -r .
 
-if [ -e "$(hg root)/.try" ]; then
-  die "Something went wrong! Watch out, $(hg root)/.try still exists."
-fi
+[[ -e "$tryfile" ]] && \
+  die "Something went wrong! Watch out, $tryfile still exists."

@@ -11,16 +11,18 @@ die() {
 if [ $# -lt 1 ] ; then
   echo "Usage: $0 try-syntax"
   cat <<EOF
--b do (debug and opt)
+-b do (d=debug, o=opt)
    [default is "do" if omitted]
 
--p linux,linux64,linux64-make,linux-make,linux-fuzz,linux64-fuzz,linux64-asan,linux64-fips,win64,win64-make,win,win-make,aarch64 (or "all" or "none")
+-p linux64,linux64-make,linux64-fuzz,linux64-asan,linux64-fips,linux,linux-make,linux-fuzz,
+   aarch64,mac,win64,win64-make,win,win-make (or "all" or "none")
    [default is "all" if omitted]
 
--u bogo,crmf,chains,cipher,db,ec,fips,gtest,interop,lowhash,merge,sdr,smime,tools,ssl (or "all" or "none")
+-u bogo,crmf,chains,cipher,db,ec,fips,gtest,interop,lowhash,merge,sdr,smime,ssl,tlsfuzzer,
+   tools (or "all" or "none")
    [default is "none" if omitted]
 
--t clang-format,scan-build,hacl,saw,coverage (or "all" or "none")
+-t abi,clang-format,coverage,hacl,saw,scan-build (or "all" or "none")
    [default is "none" if omitted]
 
 -e all (or "none")

@@ -136,9 +136,9 @@ def main():
                     help="bug number to search, used with -l")
   parser.add_option("-l", "--landed",
                     help="as-landed hg revision, used with -b")
-  parser.add_option("-r", "--revrange", default=".",
+  parser.add_option("-e", "--revrange", default=".",
                     help="hg revision range")
-  parser.add_option("-s", "--resolve",
+  parser.add_option("-r", "--resolve",
                     help="resolve bugs for a given revision range")
 
   (options, args) = parser.parse_args()

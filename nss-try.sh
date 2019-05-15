@@ -8,6 +8,10 @@ die() {
 [[ $(hg status -mard | wc -l) -eq 0 ]] || \
     die "Please commit unstaged changes"
 
+if ! hg path nss-try | grep hg.mozilla.org/projects/nss-try > /dev/null ; then
+  die "You need to set up the nss-try path. See https://wiki.mozilla.org/NSS:TryServer"
+fi
+
 if [ $# -lt 1 ] ; then
   echo "Usage: $0 try-syntax"
   cat <<EOF

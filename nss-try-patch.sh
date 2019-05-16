@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This tool takes a Differential ID and a try syntax and pushes the patch onto
+# nss-try. It lands onto the current revision, wherever that happens to be.
+
 die() {
   echo "$@"
   exit 1
@@ -8,11 +11,6 @@ die() {
 usage() {
   echo "$0 Dxxxx <try syntax>"
 }
-
-if [ $# -lt 1 ] ; then
-  usage
-  exit 1
-fi
 
 if [ $# -lt 2 ] ; then
   usage

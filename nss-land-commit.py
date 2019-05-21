@@ -50,6 +50,9 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
   else:
     comment = f"https://{repo}rev/{patch.hash.decode(encoding='UTF-8')}\n"
 
+    if hgclient.outgoing(revrange=patch.hash):
+      validator.fatal(f"Patch {patch} doesn't appear to have landed.")
+
   version = get_version(hgclient, rev=patch.hash, validator=validator)
   info(f"Patch {patch} is against {version.component} {version.number}")
 

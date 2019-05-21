@@ -64,7 +64,7 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
                                   resolution="FIXED",
                                   target_milestone=version.number,
                                   keywords_remove="checkin-needed")
-      breakpoint()
+      #breakpoint()
       bzapi.update_bugs([patch.bug], update)
       info(f"Resolved {bugdata.weburl}")
 
@@ -76,7 +76,7 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
       update = bzapi.build_update(comment=comment, status="REOPENED",
                                   resolution="---",
                                   target_milestone="---")
-      breakpoint()
+      #breakpoint()
       bzapi.update_bugs([patch.bug], update)
       info(f"Reopened {bugdata.weburl}")
 
@@ -211,3 +211,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+

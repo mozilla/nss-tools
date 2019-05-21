@@ -48,7 +48,7 @@ hg commit -m "${trysyntax}" "$tryfile"
 # || die "Couldn't create the commit"
 
 echo "Pushing to nss-try..."
-if hg push --new-branch -r . nss-try; then
+if hg push --new-branch --force -r . nss-try; then
   rev=$(hg id --id)
   echo "Pushed ${rev} to nss-try. Find it on Treeherder:"
   echo ""

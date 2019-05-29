@@ -40,6 +40,10 @@ if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].status')" == "RESOLVED" ] ;t
   die "Bug is resolved. Please update ~/.nss-uplift.conf"
 fi
 
+if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-open"])')" != "true" ] ;then
+  die "Bug is not leave-open. Please update the bug."
+fi
+
 echo "Mozilla repo: ${central_path}"
 echo "NSS tag: ${tag}"
 echo "Check-def: ${check_def}"

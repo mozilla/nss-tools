@@ -90,10 +90,10 @@ fi
 dist="$root/dist/$(cat "$root/dist/latest")"
 if [[ $(uname -s) = "Darwin" ]]; then
     export DYLD_LIBRARY_PATH="$dist/lib:$DYLD_LIBRARY_PATH"
-    debug=(/Applications/Xcode.app/Contents/Developer/usr/bin/lldb --)
+    debugger=(/Applications/Xcode.app/Contents/Developer/usr/bin/lldb --)
 else
     export LD_LIBRARY_PATH="$dist/lib:$LD_LIBRARY_PATH"
-    debug=(gdb -ex run --args)
+    debugger=(gdb -ex run --args)
 fi
 export NSS_STRICT_SHUTDOWN=1
 args+=("--gtest_filter="$(IFS=:;echo -n "${filter[*]:-*}";[[ "${#filter_excl[@]}" -gt 0 ]] && echo -n ":-${filter_excl[*]}"))
@@ -107,7 +107,7 @@ if [[ "$verbose" = 1 ]]; then
     echo "Run: ${prog[*]}" 1>&2
 fi
 if [[ "$debug" = 1 ]]; then
-    exec "${debug[@]}" "${prog[@]}"
+    exec "${debugger[@]}" "${prog[@]}"
 elif [[ "$rr" = 1 ]]; then
     rr -S record -n "${prog[@]}"
     exec rr -S replay

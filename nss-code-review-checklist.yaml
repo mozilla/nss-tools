@@ -11,6 +11,7 @@
 
 - New Gtests:
   - Added to the shell-script runners
+  - Added to both Make and Gyp manifests
 
 - Safety:
   - There are Gtests to cover the updated code

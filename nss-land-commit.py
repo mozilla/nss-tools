@@ -129,7 +129,7 @@ def process_patches(*, hgclient, bzapi, revrange: str, patches: list,
       info(f"  hg push -r {revrange}")
 
       if prompt([{'type': 'confirm', 'message': 'Was your push successful?', 'name': 'push'}])['push']:
-        resolve(hgclient=hgclient, bzapi=bzapi, patch=patch)
+        resolve(hgclient=hgclient, bzapi=bzapi, patch=patch, validator=validator)
 
 def main():
   init(autoreset=True)

@@ -26,7 +26,7 @@ if [ $# -lt 1 ] ; then
    tools (or "all" or "none")
    [default is "none" if omitted]
 
--t abi,clang-format,coverage,hacl,saw,scan-build (or "all" or "none")
+-t abi,clang-format,coverage,coverity,hacl,saw,scan-build (or "all" or "none")
    [default is "none" if omitted]
 
 -e all (or "none")

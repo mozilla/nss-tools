@@ -60,16 +60,28 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
 
   if patch.type == 'patch':
     log(comment)
-    answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and resolve the bug?',
-                      'name': 'resolve'}])
-    if answers['resolve']:
-      update = bzapi.build_update(comment=comment, status="RESOLVED",
-                                  resolution="FIXED",
-                                  target_milestone=version.number,
-                                  keywords_remove="checkin-needed")
-      #breakpoint()
+
+    update = None
+    if "leave-open" in bugdata.keywords:
+      answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and leave the bug open?',
+                        'name': 'leaveopen'}])
+      if answers['leaveopen']:
+        update = bzapi.build_update(comment=comment,
+                                    target_milestone=version.number,
+                                    keywords_remove="checkin-needed")
+
+    else:
+      answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and resolve the bug?',
+                        'name': 'resolve'}])
+      if answers['resolve']:
+        update = bzapi.build_update(comment=comment, status="RESOLVED",
+                                    resolution="FIXED",
+                                    target_milestone=version.number,
+                                    keywords_remove="checkin-needed")
+    #breakpoint()
+    if update is not None:
       bzapi.update_bugs([patch.bug], update)
-      info(f"Resolved {bugdata.weburl}")
+      info(f"Updated {bugdata.weburl}")
 
   elif patch.type == 'backout':
     log(comment)

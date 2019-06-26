@@ -18,24 +18,26 @@ shuffle=
 verbose=
 help=
 slow_tests=( \
-    "TLSVersionRanges/*" \
-    "DatagramDrop13/*" \
-    "DatagramPre13/TlsConnectDatagramPre13.*" \
-    "*/TlsCipherSuiteTest.*" \
-    "*/TlsSignatureSchemeConfiguration.*" \
-    "*.WeakDHGroup/*" \
+    "*.AlertBeforeServerHello/*" \
     "*.ConnectWithExpiredTicket*" \
+    "*.HrrThenRemoveKeyShare/1" \
+    "*.HrrThenRemoveSignatureAlgorithms/1" \
+    "*.HrrThenRemoveSupportedGroups/1" \
+    "*.KeyLogFile/*" \
     "*.ReplaceFirstClientRecordWithApplicationData/*" \
     "*.ReplaceFirstServerRecordWithApplicationData/*" \
-    "*.ServerAuthBiggestRsa/*" \
-    "*.AlertBeforeServerHello/*" \
-    "*.HrrThenRemoveSupportedGroups/1" \
-    "*.HrrThenRemoveSignatureAlgorithms/1" \
-    "*.HrrThenRemoveKeyShare/1" \
-    "*.RetryStatefulDropCookie/1" \
     "*.RetryCookieEmpty/1" \
     "*.RetryCookieWithExtras/1" \
+    "*.RetryStatefulDropCookie/1" \
+    "*.ServerAuthBiggestRsa/*" \
+    "*.WeakDHGroup/*" \
+    "*/TlsCipherSuiteTest.*" \
+    "*/TlsSignatureSchemeConfiguration.*" \
+    "DatagramDrop13/*" \
+    "DatagramPre13/TlsConnectDatagramPre13.*" \
+    "TLSVersionRanges/*" \
     "TlsConnectDatagram13.AuthCompleteBeforeFinished" \
+    "TlsConnectStreamTls13.TimePassesByDefault" \
 )
 while [ $# -ge 1 ]; do
     case "$1" in

@@ -8,7 +8,7 @@ from colorama import init, Fore
 from optparse import OptionParser
 from pathlib import Path
 
-from utils.types import Patch, PackageVersion, Validator
+from utils.types import Patch, PackageVersion, Validator, NullValidator
 
 # todo: dedupe with nss-land-commit
 def get_version(hgclient, *, rev=None, validator) -> PackageVersion:
@@ -21,6 +21,19 @@ def get_version(hgclient, *, rev=None, validator) -> PackageVersion:
     return PackageVersion.from_header(component="NSPR", header=contents,
                                       validator=validator)
   raise Exception("No version files found")
+
+class ContributorsList:
+  def __init__(self):
+    self.authors = {}
+
+  def observe(self, author, previousRelease=False):
+    if not author in self.authors or previousRelease:
+      self.authors[author] = previousRelease
+
+  def list(self, *, limitToNewContributors=True):
+    if limitToNewContributors:
+      return filter(lambda x: self.authors[x] is False, self.authors)
+    return self.authors
 
 def main():
   init(autoreset=True)
@@ -49,21 +62,26 @@ def main():
   else:
     bzapi = bugzilla.Bugzilla("bugzilla.mozilla.org", api_key=config['api_key'])
 
-  validator = Validator()
+  validator = Validator(ask=False)
 
   print(f"Interacting with Bugzilla at {bzapi.url}. Logged in = {bzapi.logged_in}")
 
   bugs={}
+  contribList = ContributorsList()
+  contribListLastHash = None
 
-  commits = hgclient.log(revrange=options.revrange)
-  for commit in commits:
+  for commit in hgclient.log(revrange=options.revrange):
     patch = Patch(commit=commit, validator=validator)
-    print(f"{patch}")
+    print(f"{patch.hash.decode('utf-8')} - {patch}")
+
+    contribListLastHash = patch.hash
 
     version = get_version(hgclient, rev=patch.hash, validator=validator)
 
     if patch.type is "tag" or patch.bug is None:
       continue
+
+    contribList.observe(patch.author.decode('utf-8'), previousRelease=False)
 
     bugdata = bzapi.getbug(patch.bug)
 
@@ -75,17 +93,22 @@ def main():
       validator.warn(f"Bug {patch.bug} is not for NSS ({bugdata.product}). Odd. Skipping.")
       continue
 
-    if bugdata.status not in ["RESOLVED"]:
+    if bugdata.status not in ["RESOLVED", "VERIFIED"]:
       validator.warn(f"Status is not resolved! bug set to {bugdata.status}. Skipping.")
       continue
 
     bugs[bugdata.id] = bugdata
 
+  if not bugs:
+    print("No patches found")
+    return
+
   if options.html:
     with io.StringIO() as buf:
       print("<ul>", file=buf)
       for bugid, bugdata in bugs.items():
-        print(f'  <li><a href="{bugdata.weburl}">Bug {bugid}</a> - {bugdata.summary}</li>', file=buf)
+        sec = "🔐 " if bugdata.groups else ""
+        print(f'  <li><a href="{bugdata.weburl}">{sec}Bug {bugid}</a> - {bugdata.summary}</li>', file=buf)
       print("</ul>", file=buf)
 
       print("\n\n")
@@ -93,6 +116,17 @@ def main():
 
       pyperclip.copy(buf.getvalue())
       print("(Copied to clipboard)")
+
+  # Derive the new contributors list
+  contributorsRevRange = f"reverse(ancestors({contribListLastHash.decode('utf-8')}^))"
+  print(f"Gathering new contributors list ({contributorsRevRange})...")
+  for commit in hgclient.log(revrange=contributorsRevRange):
+    patch = Patch(commit=commit, validator=NullValidator())
+    contribList.observe(patch.author.decode('utf-8'), previousRelease=True)
+
+  print("(Apparently) new contributors:")
+  for author in contribList.list(limitToNewContributors=True):
+    print(f"  {author}")
 
 if __name__ == "__main__":
   main()

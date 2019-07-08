@@ -15,9 +15,11 @@ RE_tag = r'Added tag (?P<tag>[A-Z0-9_]+) for changeset (?P<changeset>[a-z0-9]+)'
 @dataclass
 class Validator:
   warnings: list
+  ask: bool
 
-  def __init__(self):
+  def __init__(self, *, ask=True):
     self.warnings = []
+    self.ask = ask
 
   def fatal(self, message):
     print(Fore.RED + "[die] " + message)
@@ -27,11 +29,21 @@ class Validator:
     self.warnings.append(message)
 
     print(Fore.YELLOW + "[WARN] " + message)
-    answers = prompt([{'type': 'confirm', 'message': 'Proceed anyway?',
-                       'name': 'okay'}])
-    if not answers['okay']:
-      exit()
+    if self.ask:
+      answers = prompt([{'type': 'confirm', 'message': 'Proceed anyway?',
+                         'name': 'okay'}])
+      if not answers['okay']:
+        exit()
 
+class NullValidator:
+  def __init__(self):
+    pass
+
+  def fatal(self, message):
+    pass
+
+  def warn(self, message):
+    pass
 
 @dataclass
 class PackageVersion:

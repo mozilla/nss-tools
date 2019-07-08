@@ -54,9 +54,9 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
       validator.fatal(f"Patch {patch} doesn't appear to have landed.")
 
   version = get_version(hgclient, rev=patch.hash, validator=validator)
-  info(f"Patch {patch} is against {version.component} {version.number}")
+  info(f"Commit {patch} is against {version.component} {version.number}")
 
-  info(f"Adding comment to bug {patch.bug}:")
+  info(f"Adding comment to bug {patch.bug} - {bugdata.summary} [{bugdata.status}]:")
 
   if patch.type == 'patch':
     log(comment)

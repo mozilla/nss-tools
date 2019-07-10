@@ -86,7 +86,11 @@ while [ $# -ge 1 ]; do
 done
 
 if [[ "$build" = 1 ]]; then
-    ~/code/nss/build.sh || exit 1
+    build_args=()
+    if [[ -e "$root/dist/build_args" ]]; then
+        build_args+=(--rebuild)
+    fi
+    ~/code/nss/build.sh "${build_args[@]}" || exit 1
 fi
 
 dist="$root/dist/$(cat "$root/dist/latest")"

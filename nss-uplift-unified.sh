@@ -77,7 +77,7 @@ if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   hg bookmark nss-uplift -f || die "Couldn't make the nss-uplift bookmark"
 
   # update NSS
-  ./mach python client.py update_nss $tag || die "Couldn't update_nss"
+  ./mach python client.py update_nss --repo ${nss_path} $tag || die "Couldn't update_nss"
 
   # Check if there's a change in a .def file.
   # We might have to change security/nss.symbols then manually.

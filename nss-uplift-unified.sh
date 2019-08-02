@@ -12,6 +12,7 @@ else
  echo ""
  echo 'echo bug="1501587" > ~/.nss-uplift.conf'
  echo 'echo central_path="~/hg/mozilla-central" >> ~/.nss-uplift.conf'
+ echo 'echo nss_path="~/hg/nss" >> ~/.nss-uplift.conf'
  echo 'echo check_def="true" >> ~/.nss-uplift.conf'
  echo ""
  die "No configuration ready"
@@ -52,10 +53,15 @@ echo
 echo "Press ctrl-c to cancel."
 read cancel
 
-
 cd ${central_path}
 
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
+  echo "NSS log"
+  cd ${nss_path}
+  hg pull
+  hg log -r "$(cat ${central_path}/security/nss/TAG-INFO)::${tag}"
+  cd ${central_path}
+
   echo "Updating to the current state of inbound."
 
   hg purge . || die "Couldn't purge"
@@ -109,6 +115,12 @@ else
   hg pull inbound -u
   hg rebase -s nss-uplift -d inbound
   hg up nss-uplift
+fi
+
+VMINOR="$(grep NSSUTIL_VMINOR security/nss/lib/util/nssutil.h | cut --delim=' ' -f 3)"
+if ! grep "AM_PATH_NSS(3.${VMINOR}" old-configure.in ; then
+  echo "old-configure.in is out-of-date for this release. Fix it, then hg commit --amend and re-run"
+  exit 1
 fi
 
 hg export -r .

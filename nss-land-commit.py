@@ -135,7 +135,7 @@ def process_patches(*, hgclient, bzapi, revrange: str, patches: list,
 
     bug_status_check(bugdata=bugdata, patch=patch, validator=validator)
 
-    answers = prompt([{'type': 'confirm', 'message': 'Push and resolve bug?', 'name': 'push'}])
+    answers = prompt([{'type': 'confirm', 'message': 'Ready to Push patch (will be manual)?', 'name': 'push'}])
     if answers['push']:
       log("Now run:")
       info(f"  hg push -r {revrange}")

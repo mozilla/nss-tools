@@ -45,12 +45,10 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
 
   bug_status_check(bugdata=bugdata, patch=patch, validator=validator)
 
+  comment = f"https://{repo}rev/{patch.hash.decode(encoding='UTF-8')}\n"
   if patch.type == "backout":
-    comment = f"Backed out for {patch.reason}\n"
-  else:
-    comment = f"https://{repo}rev/{patch.hash.decode(encoding='UTF-8')}\n"
-
-    if hgclient.outgoing(revrange=patch.hash):
+    comment = f"Backed out for {patch.reason}\n{comment}"
+  elif hgclient.outgoing(revrange=patch.hash):
       validator.fatal(f"Patch {patch} doesn't appear to have landed.")
 
   version = get_version(hgclient, rev=patch.hash, validator=validator)

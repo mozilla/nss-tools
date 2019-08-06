@@ -40,11 +40,14 @@ def main():
 
   parser = OptionParser()
   parser.add_option("-r", "--revrange", default="reverse(ancestors(.))",
-                    help="hg revision range like `startHash::.`")
+                    help="hg revision range like `reverse(startHash::endHash)`")
   parser.add_option("--html", action="store_true",
                     help="Provide HTML suitable for the release notes")
 
   (options, args) = parser.parse_args()
+
+  if "reverse" not in options.revrange:
+    print(Fore.YELLOW + "Warning: You almost certainly want a `reverse` command in your revrange!")
 
   hgclient = hglib.open(".")
 
@@ -125,8 +128,8 @@ def main():
     contribList.observe(patch.author.decode('utf-8'), previousRelease=True)
 
   print("(Apparently) new contributors:")
-  for author in contribList.list(limitToNewContributors=True):
-    print(f"  {author}")
+  for author in sorted(contribList.list(limitToNewContributors=True)):
+    print(f"{author}")
 
 if __name__ == "__main__":
   main()

@@ -10,10 +10,10 @@ if [ -r ~/.nss-uplift.conf ]; then
 else
  echo "You need a ~/.nss-uplift.conf file. As a starting point, here are some defaults:"
  echo ""
- echo 'echo bug="1501587" > ~/.nss-uplift.conf'
- echo 'echo central_path="~/hg/mozilla-central" >> ~/.nss-uplift.conf'
- echo 'echo nss_path="~/hg/nss" >> ~/.nss-uplift.conf'
- echo 'echo check_def="true" >> ~/.nss-uplift.conf'
+ echo 'echo bug=1501587 > ~/.nss-uplift.conf'
+ echo 'echo central_path=~/hg/mozilla-central >> ~/.nss-uplift.conf'
+ echo 'echo nss_path=~/hg/nss >> ~/.nss-uplift.conf'
+ echo 'echo check_def=true >> ~/.nss-uplift.conf'
  echo ""
  die "No configuration ready"
 fi
@@ -32,6 +32,11 @@ hash jq 2>/dev/null || die "jq not installed"
 hash xpcshell 2>/dev/null || die "xpcshell not installed"
 hash ssh-add 2>/dev/null || die "ssh-add not installed"
 
+[ -r ${nss_path}/lib/util/nssutil.h ] ||
+  die "nss_path ${nss_path} doesn't contain NSS; check ~/.nss-uplift.conf"
+[ -r ${central_path}/security/nss/lib/util/nssutil.h ] ||
+  die "central_path {central_path} doesn't contain mozilla-central; check ~/.nss-uplift.conf"
+
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
 bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
@@ -46,6 +51,7 @@ if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-
 fi
 
 echo "Mozilla repo: ${central_path}"
+echo "NSS repo: ${nss_path}"
 echo "NSS tag: ${tag}"
 echo "Check-def: ${check_def}"
 ${nobuild} && echo "Not building (NOBUILD set)"
@@ -56,13 +62,7 @@ read cancel
 cd ${central_path}
 
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
-  echo "NSS log"
-  cd ${nss_path}
-  hg pull
-  hg log -r "$(cat ${central_path}/security/nss/TAG-INFO)::${tag}"
-  cd ${central_path}
-
-  echo "Updating to the current state of inbound."
+  echo "Updating mozilla-unified repository to the current state of inbound."
 
   hg purge . || die "Couldn't purge"
   hg revert . || die "Couldn't revert"
@@ -77,6 +77,14 @@ if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   hg bookmark nss-uplift -f || die "Couldn't make the nss-uplift bookmark"
 
   # update NSS
+  echo "Updating nss repository to the current state of default."
+  cd ${nss_path}
+  hg pull default
+
+  echo "NSS log"
+  hg log -r "reverse($(cat ${central_path}/security/nss/TAG-INFO)::${tag})"
+  cd ${central_path}
+
   ./mach python client.py update_nss --repo ${nss_path} $tag || die "Couldn't update_nss"
 
   # Check if there's a change in a .def file.

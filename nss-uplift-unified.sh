@@ -5,17 +5,22 @@ die() {
   exit 1
 }
 
+config_help() {
+  echo "There's a problem in your ~/.nss-uplift.conf file. As a starting point, here are some defaults:"
+  echo ""
+  echo 'echo bug=1501587 > ~/.nss-uplift.conf'
+  echo 'echo central_path=~/hg/mozilla-central >> ~/.nss-uplift.conf'
+  echo 'echo nss_path=~/hg/nss >> ~/.nss-uplift.conf'
+  echo 'echo check_def=true >> ~/.nss-uplift.conf'
+  echo 'echo mozilla_branch=inbound >> ~/.nss-uplift.conf'
+  echo ""
+}
+
 if [ -r ~/.nss-uplift.conf ]; then
- . ~/.nss-uplift.conf
+  . ~/.nss-uplift.conf
 else
- echo "You need a ~/.nss-uplift.conf file. As a starting point, here are some defaults:"
- echo ""
- echo 'echo bug=1501587 > ~/.nss-uplift.conf'
- echo 'echo central_path=~/hg/mozilla-central >> ~/.nss-uplift.conf'
- echo 'echo nss_path=~/hg/nss >> ~/.nss-uplift.conf'
- echo 'echo check_def=true >> ~/.nss-uplift.conf'
- echo ""
- die "No configuration ready"
+  config_help
+  die "No configuration ready"
 fi
 
 # Don't build. TODO: Move into the nss-uplift.conf or add a flag
@@ -37,6 +42,15 @@ hash ssh-add 2>/dev/null || die "ssh-add not installed"
 [ -r ${central_path}/security/nss/lib/util/nssutil.h ] ||
   die "central_path {central_path} doesn't contain mozilla-central; check ~/.nss-uplift.conf"
 
+cd ${central_path}
+
+if [ "${mozilla_branch}" == "" ] ; then
+  config_help
+  die "You must set a mozilla_branch in your conf."
+fi
+hg fxheads -T '{label("log.tag", join(fxheads, " "))}\n' | grep ${mozilla_branch} 2>&1 >/dev/null ||
+  die "mozilla_branch path ${mozilla_branch} in ${central_path} doesn't appear to exist."
+
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
 bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
@@ -51,6 +65,7 @@ if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-
 fi
 
 echo "Mozilla repo: ${central_path}"
+echo "Mozilla branch: ${mozilla_branch}"
 echo "NSS repo: ${nss_path}"
 echo "NSS tag: ${tag}"
 echo "Check-def: ${check_def}"
@@ -59,15 +74,13 @@ echo
 echo "Press ctrl-c to cancel."
 read cancel
 
-cd ${central_path}
-
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
-  echo "Updating mozilla-unified repository to the current state of inbound."
+  echo "Updating mozilla-unified repository to the current state of ${mozilla_branch}."
 
   hg purge . || die "Couldn't purge"
   hg revert . || die "Couldn't revert"
-  hg pull inbound || die "Couldn't pull from inbound"
-  hg up inbound || die "Couldn't update to inbound"
+  hg pull ${mozilla_branch} || die "Couldn't pull from ${mozilla_branch}"
+  hg up ${mozilla_branch} || die "Couldn't update to ${mozilla_branch}"
 
   if [ "${tag}" == "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
     echo "NSS tag ${tag} is already landed in this repository."
@@ -104,8 +117,8 @@ fi
 
 if hg log -l 1 --template "{desc|firstline}\n" | grep ${tag} ; then
   echo "Looks like the commit was already made."
-  echo "Updating to current inbound..."
-  hg pull inbound && hg rebase -s nss-uplift -d inbound
+  echo "Updating to current ${mozilla_branch}..."
+  hg pull ${mozilla_branch} && hg rebase -s nss-uplift -d ${mozilla_branch}
   ${nobuild} || ./mach build || die "Build failed! Manual intervention necessary!"
 
 else
@@ -119,9 +132,9 @@ else
   hg addremove
   hg commit -m "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=me"
   # get everything that happened in the meantime
-  hg up inbound
-  hg pull inbound -u
-  hg rebase -s nss-uplift -d inbound
+  hg up ${mozilla_branch}
+  hg pull ${mozilla_branch} -u
+  hg rebase -s nss-uplift -d ${mozilla_branch}
   hg up nss-uplift
 fi
 
@@ -141,8 +154,8 @@ esac
 
 echo "=> PUSH"
 echo "cd ${central_path}"
-echo "hg pull inbound && hg rebase -s nss-uplift -d inbound"
-echo "hg push -r . inbound"
+echo "hg pull ${mozilla_branch} && hg rebase -s nss-uplift -d ${mozilla_branch}"
+echo "hg push -r . ${mozilla_branch}"
 
 echo "=> Cleanup"
 echo "hg bookmark -d nss-uplift"

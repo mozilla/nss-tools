@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 if [[ -z "$NSS_DIR" ]]; then
     NSS_DIR=$(hg root 2>/dev/null || git rev-parse --show-toplevel 2>/dev/null)
 fi

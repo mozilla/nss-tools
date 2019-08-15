@@ -64,15 +64,30 @@ if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-
   die "Bug is not leave-open. Please update the bug."
 fi
 
+revset="reverse($(cat ${central_path}/security/nss/TAG-INFO)~-1::${tag})"
+
 echo "Mozilla repo: ${central_path}"
 echo "Mozilla branch: ${mozilla_branch}"
 echo "NSS repo: ${nss_path}"
 echo "NSS tag: ${tag}"
 echo "Check-def: ${check_def}"
+echo "Revset: ${revset}"
 ${nobuild} && echo "Not building (NOBUILD set)"
+
 echo
-echo "Press ctrl-c to cancel."
+echo "Press ctrl-c to cancel"
 read cancel
+
+pushd ${nss_path}
+commitmsg=$(mktemp --tmpdir uplift_commit_msgXXXXX)
+echo "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=me" > ${commitmsg}
+echo "" >> ${commitmsg}
+echo "Revset: ${revset}" >> ${commitmsg}
+echo "" >> ${commitmsg}
+hg log -r "${revset}" >> ${commitmsg}
+popd
+
+less ${commitmsg}
 
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   echo "Updating mozilla-unified repository to the current state of ${mozilla_branch}."
@@ -94,8 +109,6 @@ if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   cd ${nss_path}
   hg pull default
 
-  echo "NSS log"
-  hg log -r "reverse($(cat ${central_path}/security/nss/TAG-INFO)::${tag})"
   cd ${central_path}
 
   ./mach python client.py update_nss --repo ${nss_path} $tag || die "Couldn't update_nss"
@@ -129,14 +142,19 @@ else
   xpcshell genRootCAHashes.js ${PWD}/../ssl/RootHashes.inc || die "Updating CA table failed! Manual intervention necessary!"
   popd
 
+
   hg addremove
-  hg commit -m "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=me"
+  hg commit --logfile "${commitmsg}"
+
+
   # get everything that happened in the meantime
   hg up ${mozilla_branch}
   hg pull ${mozilla_branch} -u
   hg rebase -s nss-uplift -d ${mozilla_branch}
   hg up nss-uplift
 fi
+
+rm ${commitmsg}
 
 VMINOR="$(grep NSSUTIL_VMINOR security/nss/lib/util/nssutil.h | cut --delim=' ' -f 3)"
 if ! grep "AM_PATH_NSS(3.${VMINOR}" old-configure.in ; then

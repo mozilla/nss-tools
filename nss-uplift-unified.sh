@@ -12,7 +12,8 @@ config_help() {
   echo 'echo central_path=~/hg/mozilla-central >> ~/.nss-uplift.conf'
   echo 'echo nss_path=~/hg/nss >> ~/.nss-uplift.conf'
   echo 'echo check_def=true >> ~/.nss-uplift.conf'
-  echo 'echo mozilla_branch=inbound >> ~/.nss-uplift.conf'
+  echo 'echo mozilla_branch=central >> ~/.nss-uplift.conf'
+  echo 'echo reviewers=nssteam >> ~/.nss-uplift.conf'
   echo ""
 }
 
@@ -72,6 +73,7 @@ echo "NSS repo: ${nss_path}"
 echo "NSS tag: ${tag}"
 echo "Check-def: ${check_def}"
 echo "Revset: ${revset}"
+echo "Reviewers: ${reviewers}"
 ${nobuild} && echo "Not building (NOBUILD set)"
 
 echo
@@ -80,11 +82,11 @@ read cancel
 
 pushd ${nss_path}
 commitmsg=$(mktemp --tmpdir uplift_commit_msgXXXXX)
-echo "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=me" > ${commitmsg}
+echo "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=${reviewers}" > ${commitmsg}
 echo "" >> ${commitmsg}
 echo "Revset: ${revset}" >> ${commitmsg}
 echo "" >> ${commitmsg}
-hg log -r "${revset}" >> ${commitmsg}
+hg log -T changelog -r "${revset}" >> ${commitmsg}
 popd
 
 less ${commitmsg}

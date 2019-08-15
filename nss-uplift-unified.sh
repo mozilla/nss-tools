@@ -175,7 +175,7 @@ esac
 echo "=> PUSH"
 echo "cd ${central_path}"
 echo "hg pull ${mozilla_branch} && hg rebase -s nss-uplift -d ${mozilla_branch}"
-echo "hg push -r . ${mozilla_branch}"
+echo "arc diff --reviewers ${reviewers} ."
 
 echo "=> Cleanup"
 echo "hg bookmark -d nss-uplift"

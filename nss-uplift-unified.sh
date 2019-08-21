@@ -81,12 +81,14 @@ echo "Press ctrl-c to cancel"
 read cancel
 
 pushd ${nss_path}
+# update NSS
+echo "Updating nss repository to the current state of default."
+hg pull default
+
 commitmsg=$(mktemp --tmpdir uplift_commit_msgXXXXX)
 echo "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=${reviewers}" > ${commitmsg}
 echo "" >> ${commitmsg}
-echo "Revset: ${revset}" >> ${commitmsg}
-echo "" >> ${commitmsg}
-hg log -T changelog -r "${revset}" >> ${commitmsg}
+hg log -T changelog -r "${revset}" | grep -vE "(phabricator.services.mozilla.com|Differential)" >> ${commitmsg}
 popd
 
 less ${commitmsg}
@@ -105,13 +107,6 @@ if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   fi
 
   hg bookmark nss-uplift -f || die "Couldn't make the nss-uplift bookmark"
-
-  # update NSS
-  echo "Updating nss repository to the current state of default."
-  cd ${nss_path}
-  hg pull default
-
-  cd ${central_path}
 
   ./mach python client.py update_nss --repo ${nss_path} $tag || die "Couldn't update_nss"
 
@@ -175,7 +170,7 @@ esac
 echo "=> PUSH"
 echo "cd ${central_path}"
 echo "hg pull ${mozilla_branch} && hg rebase -s nss-uplift -d ${mozilla_branch}"
-echo "arc diff --reviewers ${reviewers} ."
+echo "moz-phab submit --reviewers ${reviewers} nss-uplift"
 
 echo "=> Cleanup"
 echo "hg bookmark -d nss-uplift"

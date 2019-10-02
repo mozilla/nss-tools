@@ -65,7 +65,7 @@ if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-
   die "Bug is not leave-open. Please update the bug."
 fi
 
-revset="reverse($(cat ${central_path}/security/nss/TAG-INFO)~-1::${tag})"
+revset="${REVSET:-reverse($(cat ${central_path}/security/nss/TAG-INFO)~-1::${tag})}"
 
 echo "Mozilla repo: ${central_path}"
 echo "Mozilla branch: ${mozilla_branch}"
@@ -167,10 +167,4 @@ case ${try} in
   * ) ;;
 esac
 
-echo "=> PUSH"
-echo "cd ${central_path}"
-echo "hg pull ${mozilla_branch} && hg rebase -s nss-uplift -d ${mozilla_branch}"
-echo "moz-phab submit --reviewers ${reviewers} nss-uplift"
-
-echo "=> Cleanup"
-echo "hg bookmark -d nss-uplift"
+moz-phab submit --reviewers ${reviewers} nss-uplift

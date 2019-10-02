@@ -41,7 +41,7 @@ hash ssh-add 2>/dev/null || die "ssh-add not installed"
 [ -r ${nss_path}/lib/util/nssutil.h ] ||
   die "nss_path ${nss_path} doesn't contain NSS; check ~/.nss-uplift.conf"
 [ -r ${central_path}/security/nss/lib/util/nssutil.h ] ||
-  die "central_path {central_path} doesn't contain mozilla-central; check ~/.nss-uplift.conf"
+  die "central_path ${central_path} doesn't contain NSS; check ~/.nss-uplift.conf"
 
 cd ${central_path}
 

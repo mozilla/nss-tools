@@ -58,7 +58,7 @@ hg fxheads -T '{label("log.tag", join(fxheads, " "))}\n' | grep ${mozilla_branch
 
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
-if [ "x${bug}" != "x" -or ${securitybug} ] ; then
+if [ "x${bug}" != "x" ] && [ ! ${securitybug} ] ; then
   bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
   echo ${bugdata}| jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
 
@@ -68,6 +68,20 @@ if [ "x${bug}" != "x" -or ${securitybug} ] ; then
 
   if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-open"])')" != "true" ] ;then
     die "Bug is not leave-open. Please update the bug."
+  fi
+fi
+
+if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
+  echo "Updating mozilla-unified repository to the current state of ${mozilla_branch}."
+
+  hg purge . || die "Couldn't purge"
+  hg revert . || die "Couldn't revert"
+  hg pull ${mozilla_branch} || die "Couldn't pull from ${mozilla_branch}"
+  hg up ${mozilla_branch} || die "Couldn't update to ${mozilla_branch}"
+
+  if [ "${tag}" == "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
+    echo "NSS tag ${tag} is already landed in this repository."
+    exit 1
   fi
 fi
 
@@ -102,18 +116,6 @@ popd
 less ${commitmsg}
 
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
-  echo "Updating mozilla-unified repository to the current state of ${mozilla_branch}."
-
-  hg purge . || die "Couldn't purge"
-  hg revert . || die "Couldn't revert"
-  hg pull ${mozilla_branch} || die "Couldn't pull from ${mozilla_branch}"
-  hg up ${mozilla_branch} || die "Couldn't update to ${mozilla_branch}"
-
-  if [ "${tag}" == "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
-    echo "NSS tag ${tag} is already landed in this repository."
-    exit 1
-  fi
-
   hg bookmark nss-uplift -f || die "Couldn't make the nss-uplift bookmark"
 
   ./mach python client.py update_nss --repo ${nss_path} $tag || die "Couldn't update_nss"

@@ -31,7 +31,9 @@ tag=${1:-$(hg id https://hg.mozilla.org/projects/nss#default)}
 
 echo "Usage: ${0} {NSS tag}"
 echo
-echo "Bug #: ${bug} https://bugzil.la/${bug}"
+if [ "x${bug}" != "x" ] ; then
+  echo "Bug #: ${bug} https://bugzil.la/${bug}"
+fi
 
 hash http 2>/dev/null || die "httpie not installed"
 hash jq 2>/dev/null || die "jq not installed"
@@ -54,15 +56,17 @@ hg fxheads -T '{label("log.tag", join(fxheads, " "))}\n' | grep ${mozilla_branch
 
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
-bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
-echo ${bugdata}| jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
+if [ "x${bug}" != "x" ] ; then
+  bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
+  echo ${bugdata}| jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
 
-if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].status')" == "RESOLVED" ] ;then
-  die "Bug is resolved. Please update ~/.nss-uplift.conf"
-fi
+  if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].status')" == "RESOLVED" ] ;then
+    die "Bug is resolved. Please update ~/.nss-uplift.conf"
+  fi
 
-if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-open"])')" != "true" ] ;then
-  die "Bug is not leave-open. Please update the bug."
+  if [ "$(echo ${bugdata} | jq --raw-output '.bugs[0].keywords | contains(["leave-open"])')" != "true" ] ;then
+    die "Bug is not leave-open. Please update the bug."
+  fi
 fi
 
 revset="${REVSET:-reverse($(cat ${central_path}/security/nss/TAG-INFO)~-1::${tag})}"
@@ -85,8 +89,8 @@ pushd ${nss_path}
 echo "Updating nss repository to the current state of default."
 hg pull default
 
-commitmsg=$(mktemp --tmpdir uplift_commit_msgXXXXX)
-echo "Bug ${bug} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=${reviewers}" > ${commitmsg}
+commitmsg=$(mktemp /tmp/uplift_commit_msgXXXXX)
+echo "Bug ${bug:-unknown} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=${reviewers}" > ${commitmsg}
 echo "" >> ${commitmsg}
 hg log -T changelog -r "${revset}" | grep -vE "(phabricator.services.mozilla.com|Differential)" >> ${commitmsg}
 popd

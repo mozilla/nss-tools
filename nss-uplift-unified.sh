@@ -26,6 +26,7 @@ fi
 
 # Don't build. TODO: Move into the nss-uplift.conf or add a flag
 nobuild=${NOBUILD:-false}
+nohashes=${NOHASHES:-false}
 
 tag=${1:-$(hg id https://hg.mozilla.org/projects/nss#default)}
 
@@ -79,6 +80,7 @@ echo "Check-def: ${check_def}"
 echo "Revset: ${revset}"
 echo "Reviewers: ${reviewers}"
 ${nobuild} && echo "Not building (NOBUILD set)"
+${nohashes} && echo "Not recreating CA hashes (NOHASHES set)"
 
 echo
 echo "Press ctrl-c to cancel"
@@ -140,13 +142,11 @@ else
 
   # update CA telemetry hash table
   pushd security/manager/tools/
-  xpcshell genRootCAHashes.js ${PWD}/../ssl/RootHashes.inc || die "Updating CA table failed! Manual intervention necessary!"
+  ${nohashes} || xpcshell genRootCAHashes.js ${PWD}/../ssl/RootHashes.inc || die "Updating CA table failed! Manual intervention necessary!"
   popd
-
 
   hg addremove
   hg commit --logfile "${commitmsg}"
-
 
   # get everything that happened in the meantime
   hg up ${mozilla_branch}

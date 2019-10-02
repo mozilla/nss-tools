@@ -27,6 +27,7 @@ fi
 # Don't build. TODO: Move into the nss-uplift.conf or add a flag
 nobuild=${NOBUILD:-false}
 nohashes=${NOHASHES:-false}
+securitybug=${SECURITY:-false}
 
 tag=${1:-$(hg id https://hg.mozilla.org/projects/nss#default)}
 
@@ -57,7 +58,7 @@ hg fxheads -T '{label("log.tag", join(fxheads, " "))}\n' | grep ${mozilla_branch
 
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
-if [ "x${bug}" != "x" ] ; then
+if [ "x${bug}" != "x" -or ${securitybug} ] ; then
   bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
   echo ${bugdata}| jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
 
@@ -81,6 +82,7 @@ echo "Revset: ${revset}"
 echo "Reviewers: ${reviewers}"
 ${nobuild} && echo "Not building (NOBUILD set)"
 ${nohashes} && echo "Not recreating CA hashes (NOHASHES set)"
+${securitybug} && echo "SECURITY BUG"
 
 echo
 echo "Press ctrl-c to cancel"

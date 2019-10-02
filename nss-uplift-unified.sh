@@ -149,12 +149,6 @@ else
 
   hg addremove
   hg commit --logfile "${commitmsg}"
-
-  # get everything that happened in the meantime
-  hg up ${mozilla_branch}
-  hg pull ${mozilla_branch} -u
-  hg rebase -s nss-uplift -d ${mozilla_branch}
-  hg up nss-uplift
 fi
 
 rm ${commitmsg}

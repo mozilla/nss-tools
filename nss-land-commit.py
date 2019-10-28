@@ -65,8 +65,7 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
                         'name': 'leaveopen'}])
       if answers['leaveopen']:
         update = bzapi.build_update(comment=comment,
-                                    target_milestone=version.number,
-                                    keywords_remove="checkin-needed")
+                                    target_milestone=version.number)
 
     else:
       answers = prompt([{'type': 'confirm', 'message': 'Submit this comment and resolve the bug?',
@@ -74,8 +73,7 @@ def resolve(*, hgclient, bzapi, patch: Patch, validator: Validator):
       if answers['resolve']:
         update = bzapi.build_update(comment=comment, status="RESOLVED",
                                     resolution="FIXED",
-                                    target_milestone=version.number,
-                                    keywords_remove="checkin-needed")
+                                    target_milestone=version.number)
     #breakpoint()
     if update is not None:
       bzapi.update_bugs([patch.bug], update)

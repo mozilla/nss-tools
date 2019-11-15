@@ -17,6 +17,14 @@ config_help() {
   echo ""
 }
 
+reset_dir() {
+  if hg id | grep nss-uplift; then
+    hg strip -r nss-uplift
+  fi
+  hg revert -C -a -i
+  rm ${commitmsg}
+}
+
 if [ -r ~/.nss-uplift.conf ]; then
   . ~/.nss-uplift.conf
 else
@@ -71,6 +79,14 @@ if [ "x${bug}" != "x" ] && [ ! ${securitybug} ] ; then
   fi
 fi
 
+if [ "${tag}" == "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
+  read -n 1 -p "Uplift appears to be in progress. Clear, or resume? [C/r]? " try
+  case ${try} in
+    r|R) ;;
+    *) reset_dir ;;
+  esac
+fi
+
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   echo "Updating mozilla-unified repository to the current state of ${mozilla_branch}."
 
@@ -107,10 +123,12 @@ pushd ${nss_path}
 echo "Updating nss repository to the current state of default."
 hg pull default
 
-commitmsg=$(mktemp /tmp/uplift_commit_msgXXXXX)
-echo "Bug ${bug:-unknown} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=${reviewers}" > ${commitmsg}
-echo "" >> ${commitmsg}
-hg log -T changelog -r "${revset}" | grep -vE "(phabricator.services.mozilla.com|Differential)" >> ${commitmsg}
+commitmsg=/tmp/${tag}.commitmsg
+if [ ! -r "${commitmsg}" ] ; then
+  echo "Bug ${bug:-unknown} - land NSS ${tag} UPGRADE_NSS_RELEASE, r=${reviewers}" > ${commitmsg}
+  echo "" >> ${commitmsg}
+  hg log -T changelog -r "${revset}" | grep -vE "(phabricator.services.mozilla.com|Differential)" >> ${commitmsg}
+fi
 popd
 
 less ${commitmsg}
@@ -169,4 +187,10 @@ case ${try} in
   * ) ;;
 esac
 
-moz-phab submit --reviewers ${reviewers} nss-uplift
+read -n 1 -p "Do you wish to submit to Phabricator (y/n)? " try
+case ${try} in
+  y|Y ) moz-phab submit --reviewers ${reviewers} nss-uplift ;;
+  * ) ;;
+esac
+
+

@@ -44,7 +44,7 @@ echo ""
 tryfile="$(hg root)/.try"
 echo "${trysyntax}" > "$tryfile"
 hg add "$tryfile"  || die "Couldn't add file $tryfile"
-hg commit -m "${trysyntax}" "$tryfile"
+hg commit -m "${trysyntax} ${COMMIT_SUFFIX}" "$tryfile"
 # || die "Couldn't create the commit"
 
 echo "Pushing to nss-try..."

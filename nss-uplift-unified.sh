@@ -186,11 +186,12 @@ case ${try} in
   y|Y ) ./mach try syntax -b "do" -p "all" -u "all" -t "none" ;;
   * ) ;;
 esac
+echo ""
 
-read -n 1 -p "Do you wish to submit to Phabricator (y/n)? " try
-case ${try} in
+read -n 1 -p "Do you wish to submit to Phabricator (y/n)? " phab
+case ${phab} in
   y|Y ) moz-phab submit --reviewers ${reviewers} nss-uplift ;;
   * ) ;;
 esac
-
+echo ""
 

@@ -25,3 +25,6 @@
   - Memory allocated is either passed to caller or freed before return
   - Memory allocated is freed on error paths
   - PORT_SetError() is called before return SECFailure
+
+- Security bugs:
+  - Description field and headline do not contain any sensitive information

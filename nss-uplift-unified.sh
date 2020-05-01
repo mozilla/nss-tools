@@ -66,7 +66,7 @@ hg fxheads -T '{label("log.tag", join(fxheads, " "))}\n' | grep ${mozilla_branch
 
 [ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
-if [ "x${bug}" != "x" ] && [ ! ${securitybug} ] ; then
+if [ "x${bug}" != "x" ] && [ ${securitybug} = false ] ; then
   bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
   echo ${bugdata}| jq '{"Summary": .bugs[0].summary, "Status": .bugs[0].status}'
 
@@ -194,4 +194,3 @@ case ${phab} in
   * ) ;;
 esac
 echo ""
-

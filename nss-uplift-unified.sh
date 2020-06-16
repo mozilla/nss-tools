@@ -22,7 +22,7 @@ reset_dir() {
     hg strip -r nss-uplift
   fi
   hg revert -C -a -i
-  rm ${commitmsg}
+  rm -f ${commitmsg}
 }
 
 if [ -r ~/.nss-uplift.conf ]; then
@@ -90,8 +90,8 @@ fi
 if [ "${tag}" != "$(cat ${central_path}/security/nss/TAG-INFO)" ] ; then
   echo "Updating mozilla-unified repository to the current state of ${mozilla_branch}."
 
-  hg purge . || die "Couldn't purge"
-  hg revert . || die "Couldn't revert"
+  hg purge --all . || die "Couldn't purge"
+  hg revert -q -C --all || die "Couldn't revert"
   hg pull ${mozilla_branch} || die "Couldn't pull from ${mozilla_branch}"
   hg up ${mozilla_branch} || die "Couldn't update to ${mozilla_branch}"
 
@@ -171,7 +171,7 @@ else
   hg commit --logfile "${commitmsg}"
 fi
 
-rm ${commitmsg}
+rm -f ${commitmsg}
 
 VMINOR="$(grep NSSUTIL_VMINOR security/nss/lib/util/nssutil.h | cut --delim=' ' -f 3)"
 if ! grep "pkg_check_modules('NSS', 'nss >= 3.${VMINOR}" toolkit/moz.configure ; then

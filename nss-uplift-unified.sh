@@ -174,8 +174,8 @@ fi
 rm ${commitmsg}
 
 VMINOR="$(grep NSSUTIL_VMINOR security/nss/lib/util/nssutil.h | cut --delim=' ' -f 3)"
-if ! grep "AM_PATH_NSS(3.${VMINOR}" old-configure.in ; then
-  echo "old-configure.in is out-of-date for this release. Fix it, then hg commit --amend and re-run"
+if ! grep "pkg_check_modules('NSS', 'nss >= 3.${VMINOR}" toolkit/moz.configure ; then
+  echo "toolkit/moz.configure is out-of-date for this release. Fix it, then hg commit --amend and re-run"
   exit 1
 fi
 

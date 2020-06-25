@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python3
 
 import bugzilla
 import hglib
@@ -100,7 +100,7 @@ def main():
 
         version = get_version(hgclient, rev=patch.hash, validator=validator)
 
-        if patch.type is "tag" or patch.bug is None:
+        if patch.type == "tag" or patch.bug is None:
             continue
 
         contribList.observe(patch.author.decode("utf-8"), previousRelease=False)

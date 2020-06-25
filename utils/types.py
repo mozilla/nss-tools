@@ -63,14 +63,14 @@ class PackageVersion:
 
     @staticmethod
     def from_header(validator: Validator, component: str, header: str):
-        if component is "NSS":
+        if component == "NSS":
             return PackageVersion(
                 "NSS",
                 PackageVersion.extract_version(
                     header, regex=RE_nss_version, validator=validator
                 ),
             )
-        if component is "NSPR":
+        if component == "NSPR":
             return PackageVersion(
                 "NSPR",
                 PackageVersion.extract_version(
@@ -168,12 +168,12 @@ class Patch:
                 validator.warn("No bug number found")
                 return False
 
-        if self.type is "backout":
+        if self.type == "backout":
             if not self.changeset or not self.reason:
                 validator.warn("No changeset or reason in backout")
                 return False
 
-        if self.type is "patch":
+        if self.type == "patch":
             if not self.reviewers:
                 validator.warn("No reviewers found")
 

@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python3
 
 import io, os
 import bugzilla
@@ -148,7 +148,7 @@ def process_patches(
         raise Exception("One at a time right now")
 
     for patch in patches:
-        if patch.type is "tag":
+        if patch.type == "tag":
             continue
 
         if bug is None:
@@ -266,7 +266,7 @@ def main():
             for commit in commits:
                 patch = Patch(commit=commit, validator=validator)
                 patch.validate(validator=validator)
-                if patch.type is "patch":
+                if patch.type == "patch":
                     resolve(
                         hgclient=hgclient, bzapi=bzapi, patch=patch, validator=validator
                     )

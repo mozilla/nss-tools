@@ -15,22 +15,37 @@ fi
 if [ $# -lt 1 ] ; then
   echo "Usage: $0 try-syntax"
   cat <<EOF
--b do (d=debug, o=opt)
-   [default is "do" if omitted]
+-b d | o
+   Description: Specifies the type of build to perform, where d=debug and o=opt.
+   Default: do
 
 -p linux64,linux64-make,linux64-fuzz,linux64-asan,linux64-fips,linux,linux-make,linux-fuzz,
-   aarch64,mac,win64,win64-make,win,win-make (or "all" or "none")
-   [default is "all" if omitted]
+   aarch64,mac,win64,win64-make,win,win-make | all | none
+   Description: Specify which platforms to enable. Valid options are any subset (for
+                example: '-p mac,win64'), "all", or "none".
+   Default: all
 
--u bogo,crmf,chains,cipher,db,ec,fips,gtest,interop,lowhash,merge,sdr,smime,ssl,tlsfuzzer,
-   tools (or "all" or "none")
-   [default is "none" if omitted]
+-u bogo,crmf,chains,cipher,db,ec,fips,gtest,interop,lowhash,merge,mpi,sdr,smime,ssl,tlsfuzzer,
+   tools | all | none
+   Description: Specify a subset of tests to run, "all", or "none". Any required parent
+                tasks (such as generating certificates) may also run.
+   Default: none
 
--t abi,clang-format,coverage,coverity,hacl,saw,scan-build (or "all" or "none")
-   [default is "none" if omitted]
+-t abi,clang-format,coverage,coverity,hacl,saw,scan-build | all | none
+   Description: Specify any subset of tools, "all", or "none".
+   Default: none
 
--e all (or "none")
-   [default is "none" if omitted]
+-e all | none
+   Description: Specify "all" or "none" to enable or disable extra builds. These include old
+                compiler versions and modular makefile builds.
+   Default: none
+
+--nspr-patch
+   Description: If specified, causes each target to apply a patch against NSPR prior to building
+                and running any tests. The patch should be the output of "hg diff" and must be
+                saved as "nspr.patch" in the top nss/ directory.
+   Default: Not specified
+
 EOF
   exit 1
 fi

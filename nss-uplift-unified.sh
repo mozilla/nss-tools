@@ -173,7 +173,7 @@ fi
 
 rm -f ${commitmsg}
 
-VMINOR="$(grep NSSUTIL_VMINOR security/nss/lib/util/nssutil.h | cut --delim=' ' -f 3)"
+VMINOR="$(grep NSSUTIL_VMINOR security/nss/lib/util/nssutil.h | awk '{print $3}')"
 if ! grep "pkg_check_modules('NSS', 'nss >= 3.${VMINOR}" build/moz.configure/nss.configure ; then
   echo "toolkit/moz.configure is out-of-date for this release. Fix it, then hg commit --amend and re-run"
   exit 1

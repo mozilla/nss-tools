@@ -49,6 +49,9 @@ hash http 2>/dev/null || die "httpie not installed"
 hash jq 2>/dev/null || die "jq not installed"
 hash xpcshell 2>/dev/null || die "xpcshell not installed"
 hash ssh-add 2>/dev/null || die "ssh-add not installed"
+hash moz-phab 2>/dev/null || die "moz-phab not installed"
+
+pip3 install mozphab --user --upgrade
 
 [ -r ${nss_path}/lib/util/nssutil.h ] ||
   die "nss_path ${nss_path} doesn't contain NSS; check ~/.nss-uplift.conf"
@@ -187,6 +190,9 @@ case ${try} in
   * ) ;;
 esac
 echo ""
+
+echo "Enter to continue"
+read next
 
 read -n 1 -p "Do you wish to submit to Phabricator (y/n)? " phab
 case ${phab} in

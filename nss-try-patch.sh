@@ -36,5 +36,5 @@ read check_proceed
 
 $(dirname $0)/nss-try.sh ${try_syntax}
 
-hg strip -r ${differential_id} || die "Couldn't strip off commit for bookmark ${differential_id}"
-hg bookmark -d ${differential_id} || die "Couldn't clean up bookmark ${differential_id}"
+hg strip -r phab-${differential_id} || die "Couldn't strip off commit for bookmark ${differential_id}"
+hg bookmark -d phab-${differential_id} || die "Couldn't clean up bookmark ${differential_id}"

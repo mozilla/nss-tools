@@ -54,8 +54,8 @@ else
     export LD_LIBRARY_PATH="$dist"/lib:"$LD_LIBRARY_PATH"
 fi
 bin="$dist"/bin/"$1"
-if [[ ! -x "$bin" ]]; then
-    echo "Not found: $1" 1>&2
+if [[ ! -x "$bin" || -d "$bin" ]]; then
+    echo "NSS command not found: $1" 1>&2
     exit 1
 fi
 shift

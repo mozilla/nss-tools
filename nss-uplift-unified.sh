@@ -67,7 +67,7 @@ fi
 hg fxheads -T '{label("log.tag", join(fxheads, " "))}\n' | grep ${mozilla_branch} 2>&1 >/dev/null ||
   die "mozilla_branch path ${mozilla_branch} in ${central_path} doesn't appear to exist."
 
-[ $(ssh-add -l|wc -l) -gt 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
+[ $(ssh-add -l|wc -l) -ge 1 ] || die "ssh keys not available, perhaps you need to ssh-add or shell in a different way?"
 
 if [ "x${bug}" != "x" ] && [ ${securitybug} = false ] ; then
   bugdata=$(http "https://bugzilla.mozilla.org/rest/bug/${bug}")
